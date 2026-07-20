@@ -1,0 +1,2 @@
+- [Auth & Storage setup](auth-storage-setup.md) — Clerk auth + Object Storage added; all /api/* routes protected globally; documents migrated off /tmp
+- [Data model overview](data-model.md) — key schema decisions, Gesamtmietvertrag pattern, unitType field, banking imports

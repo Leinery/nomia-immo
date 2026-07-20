@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="100" fill="#1C3829"/>
+  <!-- Stylized building / N mark -->
+  <rect x="48" y="70" width="20" height="80" rx="3" fill="#ffffff"/>
+  <rect x="132" y="70" width="20" height="80" rx="3" fill="#ffffff"/>
+  <polygon points="48,70 68,70 132,130 132,150 112,150 48,90" fill="#ffffff"/>
+  <!-- Roof triangle accent -->
+  <polygon points="100,30 140,68 60,68" fill="#4CAF84" opacity="0.85"/>
+</svg>

@@ -1,15 +1,18 @@
 import { useState } from "react";
-import { 
-  useListDocuments, 
+import {
+  useListDocuments,
   useDeleteDocument,
+  useListProperties,
   getListDocumentsQueryKey,
-  useListProperties
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileSpreadsheet, Plus, Trash2, Download, FileText, Image as ImageIcon, FileArchive, Building2, UploadCloud } from "lucide-react";
+import {
+  FileSpreadsheet, Plus, Trash2, Download, FileText,
+  Image as ImageIcon, FileArchive, Building2, UploadCloud, Loader2,
+} from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,37 +22,85 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
 const uploadSchema = z.object({
   name: z.string().min(1, "Name ist erforderlich"),
+  category: z.string().optional().nullable(),
   propertyId: z.coerce.number().optional().nullable(),
-  unitId: z.coerce.number().optional().nullable(),
-  contractId: z.coerce.number().optional().nullable(),
 });
-
 type UploadFormValues = z.infer<typeof uploadSchema>;
 
-const getFileIcon = (mimeType?: string | null) => {
-  if (!mimeType) return <FileText className="w-4 h-4" />;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getFileIcon(mimeType?: string | null) {
+  if (!mimeType) return <FileText className="w-4 h-4 text-muted-foreground" />;
   if (mimeType.includes("pdf")) return <FileArchive className="w-4 h-4 text-red-500" />;
   if (mimeType.includes("image")) return <ImageIcon className="w-4 h-4 text-blue-500" />;
-  if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType.includes("csv")) return <FileSpreadsheet className="w-4 h-4 text-green-500" />;
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel") || mimeType.includes("csv"))
+    return <FileSpreadsheet className="w-4 h-4 text-green-500" />;
   return <FileText className="w-4 h-4 text-muted-foreground" />;
-};
+}
 
-const formatFileSize = (bytes?: number | null) => {
-  if (!bytes) return "-";
+function formatFileSize(bytes?: number | null) {
+  if (!bytes) return "—";
   const mb = bytes / (1024 * 1024);
   if (mb < 1) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${mb.toFixed(2)} MB`;
+}
+
+const CATEGORIES: Record<string, string> = {
+  contract:   "Mietvertrag",
+  invoice:    "Rechnung",
+  utility:    "Nebenkosten",
+  insurance:  "Versicherung",
+  inspection: "Protokoll",
+  other:      "Sonstiges",
 };
+
+// ─── Upload flow using Object Storage presigned URLs ─────────────────────────
+
+async function uploadToObjectStorage(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<string> {
+  // Step 1: Request presigned URL from our API
+  const metaRes = await fetch(`${BASE}/api/storage/uploads/request-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+  });
+  if (!metaRes.ok) throw new Error("Presigned URL konnte nicht angefordert werden");
+  const { uploadURL, objectPath } = await metaRes.json();
+
+  // Step 2: Upload file directly to GCS via XMLHttpRequest (for progress tracking)
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadURL);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload fehlgeschlagen: ${xhr.status}`)));
+    xhr.onerror = () => reject(new Error("Netzwerkfehler beim Upload"));
+    xhr.send(file);
+  });
+
+  return objectPath as string;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function DocumentsList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   const { data: documents, isLoading: isLoadingDocs } = useListDocuments();
   const { data: properties } = useListProperties();
   const deleteMutation = useDeleteDocument();
@@ -57,165 +108,160 @@ export default function DocumentsList() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const form = useForm<UploadFormValues>({
     resolver: zodResolver(uploadSchema),
-    defaultValues: {
-      name: "",
-      propertyId: undefined,
-      unitId: undefined,
-      contractId: undefined,
-    },
+    defaultValues: { name: "", category: null, propertyId: null },
   });
+
+  const openDialog = () => {
+    form.reset({ name: "", category: null, propertyId: null });
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setIsDialogOpen(true);
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    setSelectedFile(f);
+    if (f && !form.getValues("name")) form.setValue("name", f.name.replace(/\.[^.]+$/, ""));
+  };
 
   const onSubmit = async (data: UploadFormValues) => {
     if (!selectedFile) {
-      toast({ title: "Bitte wählen Sie eine Datei aus", variant: "destructive" });
+      toast({ title: "Bitte eine Datei auswählen", variant: "destructive" });
       return;
     }
-
     setIsUploading(true);
+    setUploadProgress(0);
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("name", data.name);
-      
-      if (data.propertyId) formData.append("propertyId", String(data.propertyId));
-      if (data.unitId) formData.append("unitId", String(data.unitId));
-      if (data.contractId) formData.append("contractId", String(data.contractId));
+      // Upload to Object Storage, get back objectPath
+      const objectPath = await uploadToObjectStorage(selectedFile, setUploadProgress);
 
-      const res = await fetch("/api/documents/upload", {
+      // Persist metadata in our DB
+      const res = await fetch(`${BASE}/api/documents/upload`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          category: data.category || null,
+          objectPath,
+          mimeType: selectedFile.type,
+          fileSize: selectedFile.size,
+          propertyId: data.propertyId || null,
+        }),
       });
-
-      if (!res.ok) {
-        throw new Error("Fehler beim Hochladen der Datei");
-      }
+      if (!res.ok) throw new Error("Metadaten konnten nicht gespeichert werden");
 
       queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
-      toast({ title: "Dokument hochgeladen" });
+      toast({ title: "Dokument hochgeladen", description: data.name });
       setIsDialogOpen(false);
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Upload fehlgeschlagen", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Upload fehlgeschlagen", description: err.message, variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm("Sind Sie sicher, dass Sie dieses Dokument unwiderruflich löschen möchten?")) return;
-    deleteMutation.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
-          toast({ title: "Dokument gelöscht" });
-        },
-      }
-    );
-  };
-
-  const openUploadDialog = () => {
-    setSelectedFile(null);
-    form.reset({
-      name: "",
-      propertyId: undefined,
-      unitId: undefined,
-      contractId: undefined,
-    });
-    setIsDialogOpen(true);
+  const handleDelete = async (id: number) => {
+    if (!confirm("Dokument wirklich löschen?")) return;
+    try {
+      await deleteMutation.mutateAsync({ params: { id } });
+      queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
+      toast({ title: "Dokument gelöscht" });
+    } catch {
+      toast({ title: "Fehler beim Löschen", variant: "destructive" });
+    }
   };
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-serif text-foreground">Dokumente</h1>
-          <p className="text-muted-foreground mt-1 font-sans">Zentrale Dateiablage für das gesamte Portfolio.</p>
+          <h1 className="text-2xl font-bold text-foreground">Dokumente</h1>
+          <p className="text-muted-foreground mt-1">
+            Mietverträge, Rechnungen und Belege — sicher in der Cloud gespeichert.
+          </p>
         </div>
-        <Button onClick={openUploadDialog} className="gap-2">
-          <UploadCloud className="w-4 h-4" />
-          Dokument hochladen
+        <Button onClick={openDialog} className="gap-2">
+          <Plus className="w-4 h-4" /> Dokument hochladen
         </Button>
       </div>
 
+      {/* Table */}
       <Card className="shadow-sm">
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead>Dateiname</TableHead>
-                <TableHead>Zuweisung</TableHead>
-                <TableHead>Größe</TableHead>
-                <TableHead>Datum</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Kategorie</TableHead>
+                <TableHead className="hidden sm:table-cell">Immobilie</TableHead>
+                <TableHead className="hidden md:table-cell">Größe</TableHead>
+                <TableHead className="hidden md:table-cell">Hochgeladen</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoadingDocs ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Lade Dokumente...</TableCell>
+                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                    Lade Dokumente…
+                  </TableCell>
                 </TableRow>
-              ) : documents?.length === 0 ? (
+              ) : !documents?.length ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    <FileSpreadsheet className="w-12 h-12 mx-auto text-muted mb-4" />
-                    Keine Dokumente gefunden.
+                  <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
+                    <UploadCloud className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">Noch keine Dokumente hochgeladen.</p>
+                    <p className="text-xs mt-1">Mietverträge, Rechnungen oder Belege lassen sich direkt hier ablegen.</p>
                   </TableCell>
                 </TableRow>
               ) : (
-                documents?.map((doc) => (
+                documents.map((doc) => (
                   <TableRow key={doc.id} className="group">
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-md bg-muted/50">
-                          {getFileIcon(doc.mimeType)}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-foreground">{doc.name}</span>
-                          <span className="text-xs text-muted-foreground uppercase">{doc.category || "Allgemein"}</span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        {getFileIcon(doc.mimeType)}
+                        <span className="font-medium text-sm">{doc.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1.5">
-                        {doc.propertyId && (
-                          <Badge variant="outline" className="text-xs font-normal border-border gap-1 text-muted-foreground">
-                            <Building2 className="w-3 h-3" />
-                            Prop {doc.propertyId}
-                          </Badge>
-                        )}
-                        {doc.unitId && (
-                          <Badge variant="outline" className="text-xs font-normal border-border gap-1 text-muted-foreground">
-                            Unit {doc.unitId}
-                          </Badge>
-                        )}
-                        {doc.contractId && (
-                          <Badge variant="outline" className="text-xs font-normal border-border gap-1 text-muted-foreground">
-                            Contract {doc.contractId}
-                          </Badge>
-                        )}
-                        {!doc.propertyId && !doc.unitId && !doc.contractId && (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                      </div>
+                      {doc.category ? (
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {CATEGORIES[doc.category] ?? doc.category}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground font-mono">
+                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                      {doc.propertyId
+                        ? properties?.find((p) => p.id === doc.propertyId)?.name ?? `Obj. ${doc.propertyId}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground font-mono">
                       {formatFileSize(doc.fileSize)}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {formatDate(doc.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                          <Button variant="ghost" size="icon" type="button">
-                            <Download className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {doc.fileUrl && (
+                          <Button variant="ghost" size="icon" asChild>
+                            <a href={`${BASE}${doc.fileUrl}`} target="_blank" rel="noopener noreferrer" title="Öffnen">
+                              <Download className="w-4 h-4 text-muted-foreground" />
+                            </a>
                           </Button>
-                        </a>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(doc.id)}>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(doc.id)}
+                        >
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       </div>
@@ -228,115 +274,120 @@ export default function DocumentsList() {
         </CardContent>
       </Card>
 
+      {/* Upload dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Dokument hochladen</DialogTitle>
             <DialogDescription>
-              Wählen Sie eine Datei aus und ordnen Sie sie optional einer Immobilie zu.
+              Datei wird sicher in der Cloud gespeichert und ist dauerhaft verfügbar.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <FormItem>
-                  <FormLabel>Datei</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="file" 
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setSelectedFile(file);
-                          if (!form.getValues("name")) {
-                            form.setValue("name", file.name);
-                          }
-                        }
-                      }} 
-                    />
-                  </FormControl>
-                  {selectedFile && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                    </p>
+              {/* File picker */}
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  id="file-input"
+                  className="hidden"
+                  onChange={onFileChange}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.zip"
+                />
+                <label htmlFor="file-input" className="cursor-pointer">
+                  <UploadCloud className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                  {selectedFile ? (
+                    <div>
+                      <p className="text-sm font-medium">{selectedFile.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{formatFileSize(selectedFile.size)}</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Klicken zum Auswählen</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">PDF, Word, Excel, Bilder bis 50 MB</p>
+                    </div>
                   )}
-                </FormItem>
+                </label>
+              </div>
 
+              {isUploading && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Wird hochgeladen…</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="h-1.5" />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Anzeigename</FormLabel>
+                    <FormItem className="col-span-2">
+                      <FormLabel>Bezeichnung</FormLabel>
                       <FormControl>
-                        <Input placeholder="Dokumentenname..." {...field} />
+                        <Input placeholder="z.B. Mietvertrag Wohnung EG" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                <div className="bg-muted/30 p-4 rounded-md space-y-4 border">
-                  <p className="text-sm font-medium">Zuordnung (Optional)</p>
-                  
-                  <FormField
-                    control={form.control}
-                    name="propertyId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Immobilie</FormLabel>
-                        <Select onValueChange={(val) => field.onChange(Number(val))} value={field.value ? String(field.value) : undefined}>
-                          <FormControl>
-                            <SelectTrigger className="bg-background">
-                              <SelectValue placeholder="Immobilie wählen..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {properties?.map(p => (
-                              <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="unitId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Einheit ID</FormLabel>
-                          <FormControl>
-                            <Input type="number" className="bg-background" placeholder="Optional" {...field} value={field.value ?? ""} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contractId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Vertrag ID</FormLabel>
-                          <FormControl>
-                            <Input type="number" className="bg-background" placeholder="Optional" {...field} value={field.value ?? ""} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kategorie</FormLabel>
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={(v) => field.onChange(v || null)}
+                      >
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Wählen…" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(CATEGORIES).map(([v, l]) => (
+                            <SelectItem key={v} value={v}>{l}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="propertyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Immobilie</FormLabel>
+                      <Select
+                        value={field.value ? String(field.value) : ""}
+                        onValueChange={(v) => field.onChange(v ? parseInt(v) : null)}
+                      >
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {properties?.map((p) => (
+                            <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-              <DialogFooter className="pt-4 border-t mt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Abbrechen</Button>
-                <Button type="submit" disabled={isUploading}>
-                  {isUploading ? "Lädt hoch..." : "Hochladen"}
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isUploading}>
+                  Abbrechen
+                </Button>
+                <Button type="submit" disabled={isUploading || !selectedFile} className="gap-2">
+                  {isUploading ? <><Loader2 className="h-4 w-4 animate-spin" /> Wird hochgeladen…</> : <><UploadCloud className="h-4 w-4" /> Hochladen</>}
                 </Button>
               </DialogFooter>
             </form>

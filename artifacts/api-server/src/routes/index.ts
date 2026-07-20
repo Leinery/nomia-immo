@@ -10,10 +10,12 @@ import utilityStatementsRouter from "./utility-statements";
 import dashboardRouter from "./dashboard";
 import bankingRouter from "./banking";
 import metersRouter from "./meters";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(storageRouter);
 router.use(propertiesRouter);
 router.use(unitsRouter);
 router.use(tenantsRouter);

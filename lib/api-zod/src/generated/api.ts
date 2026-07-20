@@ -735,4 +735,13 @@ export const GetIncomeByMonthResponseItem = zod.object({
 })
 export const GetIncomeByMonthResponse = zod.array(GetIncomeByMonthResponseItem)
 
-
+// Object Storage
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string(),
+  size: zod.number(),
+  contentType: zod.string(),
+})
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string(),
+  objectPath: zod.string(),
+})
