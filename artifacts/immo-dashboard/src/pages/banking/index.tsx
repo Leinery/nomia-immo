@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Landmark, RefreshCw, CheckCircle2, CircleDashed, EyeOff, Bot } from "lucide-react"
+import { Landmark, RefreshCw, CheckCircle2, CircleDashed, EyeOff, Bot, ArrowDownLeft, ArrowUpRight } from "lucide-react"
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "")
 
@@ -50,6 +50,7 @@ interface Payment {
   contractId: number | null
   matchStatus: "matched" | "unmatched" | "ignored"
   matchedAutomatically: boolean
+  category: string | null
   tenantName: string | null
 }
 
@@ -58,6 +59,16 @@ interface Contract {
   monthlyRent: number
   status: string
 }
+
+const CATEGORIES = [
+  { value: "rent",        label: "Miete" },
+  { value: "utility",     label: "Nebenkosten" },
+  { value: "maintenance", label: "Instandhaltung" },
+  { value: "management",  label: "Verwaltung" },
+  { value: "insurance",   label: "Versicherung" },
+  { value: "tax",         label: "Steuer / Abgaben" },
+  { value: "other",       label: "Sonstiges" },
+]
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
@@ -93,7 +104,7 @@ function formatIban(iban: string) {
   return iban.replace(/(.{4})/g, "$1 ").trim()
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
+// ─── Badges ──────────────────────────────────────────────────────────────────
 
 function StatusBadge({ status, auto }: { status: Payment["matchStatus"]; auto: boolean }) {
   if (status === "matched")
@@ -119,11 +130,18 @@ function StatusBadge({ status, auto }: { status: Payment["matchStatus"]; auto: b
   )
 }
 
+function categoryLabel(cat: string | null) {
+  return CATEGORIES.find((c) => c.value === cat)?.label ?? null
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
+
+type DirectionFilter = "all" | "credit" | "debit"
 
 export default function BankingPage() {
   const { toast } = useToast()
   const qc = useQueryClient()
+  const [direction, setDirection] = React.useState<DirectionFilter>("all")
 
   const accountsQ = useQuery({ queryKey: ["banking-accounts"], queryFn: fetchAccounts })
   const paymentsQ = useQuery({ queryKey: ["banking-payments"], queryFn: fetchPayments })
@@ -133,7 +151,7 @@ export default function BankingPage() {
     mutationFn: async () => {
       const r = await fetch(`${BASE}/api/banking/sync`, { method: "POST" })
       if (!r.ok) throw new Error("Sync fehlgeschlagen")
-      return r.json() as Promise<{ imported: number; matched: number }>
+      return r.json() as Promise<{ imported: number; matched: number; total: number }>
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["banking-payments"] })
@@ -158,6 +176,19 @@ export default function BankingPage() {
     onError: () => toast({ title: "Zuordnung fehlgeschlagen", variant: "destructive" }),
   })
 
+  const categoryMut = useMutation({
+    mutationFn: async ({ paymentId, category }: { paymentId: number; category: string | null }) => {
+      const r = await fetch(`${BASE}/api/banking/payments/${paymentId}/category`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category }),
+      })
+      if (!r.ok) throw new Error("Kategorie konnte nicht gesetzt werden")
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["banking-payments"] }),
+    onError: () => toast({ title: "Kategorie-Fehler", variant: "destructive" }),
+  })
+
   const ignoreMut = useMutation({
     mutationFn: async (paymentId: number) => {
       const r = await fetch(`${BASE}/api/banking/payments/${paymentId}/ignore`, { method: "PATCH" })
@@ -168,12 +199,20 @@ export default function BankingPage() {
   })
 
   const accounts = accountsQ.data?.accounts ?? []
-  const payments = paymentsQ.data ?? []
+  const allPayments = paymentsQ.data ?? []
   const contracts = contractsQ.data ?? []
 
-  const matched = payments.filter((p) => p.matchStatus === "matched").length
-  const unmatched = payments.filter((p) => p.matchStatus === "unmatched").length
-  const totalIncoming = payments.reduce((s, p) => s + (p.matchStatus !== "ignored" ? p.amount : 0), 0)
+  // Direction filter
+  const payments = allPayments.filter((p) => {
+    if (direction === "credit") return p.amount > 0
+    if (direction === "debit") return p.amount < 0
+    return true
+  })
+
+  const totalCredit = allPayments.filter(p => p.matchStatus !== "ignored" && p.amount > 0).reduce((s, p) => s + p.amount, 0)
+  const totalDebit  = allPayments.filter(p => p.matchStatus !== "ignored" && p.amount < 0).reduce((s, p) => s + p.amount, 0)
+  const matched   = allPayments.filter((p) => p.matchStatus === "matched").length
+  const unmatched = allPayments.filter((p) => p.matchStatus === "unmatched").length
 
   return (
     <div className="space-y-6 px-4 md:px-8 py-6">
@@ -181,7 +220,7 @@ export default function BankingPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Banking</h1>
-          <p className="text-muted-foreground text-sm">Kontoauszugs-Abgleich via Nevlo</p>
+          <p className="text-muted-foreground text-sm">Alle Kontobewegungen via Nevlo</p>
         </div>
         <Button
           onClick={() => syncMut.mutate()}
@@ -224,26 +263,39 @@ export default function BankingPage() {
       </div>
 
       {/* Summary stats */}
-      {payments.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+      {allPayments.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-5 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Gesamt importiert</p>
-              <p className="text-2xl font-bold mt-1">{formatEur(totalIncoming)}</p>
-              <p className="text-xs text-muted-foreground">{payments.length} Buchungen</p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600" />
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Einnahmen</p>
+              </div>
+              <p className="text-xl font-bold text-emerald-700">{formatEur(totalCredit)}</p>
+              <p className="text-xs text-muted-foreground">{allPayments.filter(p => p.amount > 0).length} Buchungen</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-5 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Zugeordnet</p>
-              <p className="text-2xl font-bold mt-1 text-emerald-700">{matched}</p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <ArrowUpRight className="h-3.5 w-3.5 text-red-500" />
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Ausgaben</p>
+              </div>
+              <p className="text-xl font-bold text-red-600">{formatEur(totalDebit)}</p>
+              <p className="text-xs text-muted-foreground">{allPayments.filter(p => p.amount < 0).length} Buchungen</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5 pb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Zugeordnet</p>
+              <p className="text-xl font-bold text-emerald-700">{matched}</p>
               <p className="text-xs text-muted-foreground">Buchungen</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-5 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Offen</p>
-              <p className="text-2xl font-bold mt-1 text-amber-600">{unmatched}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Offen</p>
+              <p className="text-xl font-bold text-amber-600">{unmatched}</p>
               <p className="text-xs text-muted-foreground">Buchungen</p>
             </CardContent>
           </Card>
@@ -252,8 +304,24 @@ export default function BankingPage() {
 
       {/* Transactions table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Eingegangene Zahlungen</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardTitle className="text-base">Alle Buchungen</CardTitle>
+          {/* Direction filter tabs */}
+          <div className="flex gap-1 rounded-lg border p-1 bg-muted/40">
+            {(["all", "credit", "debit"] as DirectionFilter[]).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDirection(d)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  direction === d
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {d === "all" ? "Alle" : d === "credit" ? "Einnahmen" : "Ausgaben"}
+              </button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {paymentsQ.isLoading ? (
@@ -261,97 +329,150 @@ export default function BankingPage() {
           ) : payments.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <RefreshCw className="h-8 w-8 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">Noch keine Buchungen importiert</p>
-              <p className="text-xs mt-1">Klicke auf „Jetzt synchronisieren" um Kontobewegungen zu laden.</p>
+              <p className="text-sm font-medium">
+                {allPayments.length === 0
+                  ? "Noch keine Buchungen importiert"
+                  : "Keine Buchungen für diesen Filter"}
+              </p>
+              {allPayments.length === 0 && (
+                <p className="text-xs mt-1">Klicke auf „Jetzt synchronisieren" um Kontobewegungen zu laden.</p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Datum</TableHead>
-                    <TableHead>Absender</TableHead>
+                    <TableHead className="w-[100px]">Datum</TableHead>
+                    <TableHead>Gegenkonto</TableHead>
                     <TableHead>Verwendungszweck</TableHead>
                     <TableHead className="text-right">Betrag</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Vertrag zuordnen</TableHead>
+                    <TableHead>Kategorie</TableHead>
+                    <TableHead>Status / Vertrag</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments.map((p) => (
-                    <TableRow
-                      key={p.id}
-                      className={
-                        p.matchStatus === "matched"
-                          ? "bg-emerald-50/40"
-                          : p.matchStatus === "ignored"
-                          ? "opacity-50"
-                          : ""
-                      }
-                    >
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {formatDate(p.bookingDate)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <div className="font-medium">{p.counterpartName ?? "—"}</div>
-                        {p.counterpartIban && (
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {formatIban(p.counterpartIban)}
+                  {payments.map((p) => {
+                    const isCredit = p.amount > 0
+                    return (
+                      <TableRow
+                        key={p.id}
+                        className={
+                          p.matchStatus === "ignored"
+                            ? "opacity-40"
+                            : ""
+                        }
+                      >
+                        <TableCell className="whitespace-nowrap text-sm">
+                          {formatDate(p.bookingDate)}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <div className="flex items-center gap-1.5">
+                            {isCredit
+                              ? <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              : <ArrowUpRight className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                            }
+                            <div>
+                              <div className="font-medium leading-tight">{p.counterpartName ?? "—"}</div>
+                              {p.counterpartIban && (
+                                <div className="text-xs text-muted-foreground font-mono">
+                                  {formatIban(p.counterpartIban)}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate">
-                        {p.purpose ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold text-sm whitespace-nowrap text-emerald-700">
-                        +{formatEur(p.amount)}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={p.matchStatus} auto={p.matchedAutomatically} />
-                        {p.tenantName && (
-                          <div className="text-xs text-muted-foreground mt-1">{p.tenantName}</div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={p.contractId ? String(p.contractId) : "none"}
-                          onValueChange={(val) =>
-                            matchMut.mutate({
-                              paymentId: p.id,
-                              contractId: val === "none" ? null : parseInt(val, 10),
-                            })
-                          }
-                          disabled={p.matchStatus === "ignored"}
-                        >
-                          <SelectTrigger className="h-8 text-xs w-44">
-                            <SelectValue placeholder="Vertrag wählen …" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Kein Vertrag</SelectItem>
-                            {contracts.map((c) => (
-                              <SelectItem key={c.id} value={String(c.id)}>
-                                Vertrag #{c.id} — {formatEur(c.monthlyRent)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        {p.matchStatus !== "ignored" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-muted-foreground"
-                            onClick={() => ignoreMut.mutate(p.id)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                          {p.purpose ?? "—"}
+                        </TableCell>
+                        <TableCell className={`text-right font-semibold text-sm whitespace-nowrap ${isCredit ? "text-emerald-700" : "text-red-600"}`}>
+                          {isCredit ? "+" : ""}{formatEur(p.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={p.category ?? "none"}
+                            onValueChange={(val) =>
+                              categoryMut.mutate({
+                                paymentId: p.id,
+                                category: val === "none" ? null : val,
+                              })
+                            }
                           >
-                            <EyeOff className="h-3 w-3 mr-1" />
-                            Ignorieren
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            <SelectTrigger className="h-8 text-xs w-40">
+                              <SelectValue placeholder="Kategorie …">
+                                {p.category ? categoryLabel(p.category) : <span className="text-muted-foreground">Kategorie …</span>}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none"><span className="text-muted-foreground">— keine —</span></SelectItem>
+                              {CATEGORIES.map((c) => (
+                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          {isCredit ? (
+                            <>
+                              <StatusBadge status={p.matchStatus} auto={p.matchedAutomatically} />
+                              {p.tenantName && (
+                                <div className="text-xs text-muted-foreground mt-1">{p.tenantName}</div>
+                              )}
+                              <Select
+                                value={p.contractId ? String(p.contractId) : "none"}
+                                onValueChange={(val) =>
+                                  matchMut.mutate({
+                                    paymentId: p.id,
+                                    contractId: val === "none" ? null : parseInt(val, 10),
+                                  })
+                                }
+                                disabled={p.matchStatus === "ignored"}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-40 mt-1">
+                                  <SelectValue placeholder="Vertrag …" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Kein Vertrag</SelectItem>
+                                  {contracts.map((c) => (
+                                    <SelectItem key={c.id} value={String(c.id)}>
+                                      Vertrag #{c.id} — {formatEur(c.monthlyRent)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Ausgabe</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {p.matchStatus !== "ignored" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-muted-foreground"
+                              onClick={() => ignoreMut.mutate(p.id)}
+                            >
+                              <EyeOff className="h-3 w-3 mr-1" />
+                              Ignorieren
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-muted-foreground"
+                              onClick={() =>
+                                matchMut.mutate({ paymentId: p.id, contractId: null })
+                              }
+                            >
+                              Wiederherstellen
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>

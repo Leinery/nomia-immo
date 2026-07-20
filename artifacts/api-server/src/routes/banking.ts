@@ -94,13 +94,11 @@ router.post("/banking/sync", async (_req, res): Promise<void> => {
     .innerJoin(unitsTable, eq(contractsTable.unitId, unitsTable.id))
     .where(eq(contractsTable.status, "active"));
 
-  // 4. Only incoming transactions (amount > 0)
-  const incoming = transactions.filter((t) => t.amount > 0);
-
+  // 4. Import ALL transactions (positive = income, negative = expense)
   let imported = 0;
   let matched = 0;
 
-  for (const tx of incoming) {
+  for (const tx of transactions) {
     // Skip already imported
     const existing = await db
       .select({ id: rentPaymentsTable.id })
@@ -108,32 +106,34 @@ router.post("/banking/sync", async (_req, res): Promise<void> => {
       .where(eq(rentPaymentsTable.nevloTransactionId, tx.id));
     if (existing.length > 0) continue;
 
-    // Auto-match logic
+    // Auto-match logic — only for incoming (positive) transactions
     let contractId: number | null = null;
     let matchedAuto = false;
 
-    const tenantFullName = (c: typeof contracts[0]) =>
-      `${c.tenantFirstName} ${c.tenantLastName}`.toLowerCase();
+    if (tx.amount > 0) {
+      const tenantFullName = (c: typeof contracts[0]) =>
+        `${c.tenantFirstName} ${c.tenantLastName}`.toLowerCase();
 
-    for (const contract of contracts) {
-      const rent = parseFloat(contract.monthlyRent);
-      const amtDiff = Math.abs(tx.amount - rent) / rent;
-      const nameMatch =
-        tx.counterpartName &&
-        tenantFullName(contract).split(" ").some((part) =>
-          tx.counterpartName!.toLowerCase().includes(part)
-        );
-      const purposeMatch =
-        tx.purpose &&
-        tenantFullName(contract).split(" ").some((part) =>
-          tx.purpose!.toLowerCase().includes(part)
-        );
+      for (const contract of contracts) {
+        const rent = parseFloat(contract.monthlyRent);
+        const amtDiff = rent > 0 ? Math.abs(tx.amount - rent) / rent : 1;
+        const nameMatch =
+          tx.counterpartName &&
+          tenantFullName(contract).split(" ").some((part) =>
+            tx.counterpartName!.toLowerCase().includes(part)
+          );
+        const purposeMatch =
+          tx.purpose &&
+          tenantFullName(contract).split(" ").some((part) =>
+            tx.purpose!.toLowerCase().includes(part)
+          );
 
-      // Match if: amount within 5% tolerance OR tenant name in counterpart/purpose
-      if (amtDiff <= 0.05 || nameMatch || purposeMatch) {
-        contractId = contract.contractId;
-        matchedAuto = true;
-        break;
+        // Match if: amount within 5% tolerance OR tenant name in counterpart/purpose
+        if (amtDiff <= 0.05 || nameMatch || purposeMatch) {
+          contractId = contract.contractId;
+          matchedAuto = true;
+          break;
+        }
       }
     }
 
@@ -154,13 +154,15 @@ router.post("/banking/sync", async (_req, res): Promise<void> => {
       contractId: contractId ?? undefined,
       matchStatus: contractId ? "matched" : "unmatched",
       matchedAutomatically: matchedAuto ? 1 : 0,
+      // Auto-categorise incoming as 'rent', outgoing stays null (user assigns)
+      category: tx.amount > 0 && contractId ? "rent" : null,
     });
 
     imported++;
     if (contractId) matched++;
   }
 
-  res.json({ imported, matched, total: incoming.length });
+  res.json({ imported, matched, total: transactions.length });
 });
 
 // GET /api/banking/payments — list all stored payments with contract details
@@ -182,6 +184,7 @@ router.get("/banking/payments", async (_req, res): Promise<void> => {
       contractId: rentPaymentsTable.contractId,
       matchStatus: rentPaymentsTable.matchStatus,
       matchedAutomatically: rentPaymentsTable.matchedAutomatically,
+      category: rentPaymentsTable.category,
       createdAt: rentPaymentsTable.createdAt,
       tenantFirstName: tenantsTable.firstName,
       tenantLastName: tenantsTable.lastName,
@@ -230,6 +233,20 @@ router.patch("/banking/payments/:id/match", async (req, res): Promise<void> => {
   }
 
   res.json({ ...row, amount: parseFloat(row.amount), matchedAutomatically: false });
+});
+
+// PATCH /api/banking/payments/:id/category — set category
+router.patch("/banking/payments/:id/category", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  const { category } = req.body as { category: string | null };
+  if (isNaN(id)) { res.status(400).json({ error: "Ungültige ID" }); return; }
+  const [row] = await db
+    .update(rentPaymentsTable)
+    .set({ category: category ?? undefined })
+    .where(eq(rentPaymentsTable.id, id))
+    .returning();
+  if (!row) { res.status(404).json({ error: "Buchung nicht gefunden" }); return; }
+  res.json({ ...row, amount: parseFloat(row.amount) });
 });
 
 // PATCH /api/banking/payments/:id/ignore — mark as ignored

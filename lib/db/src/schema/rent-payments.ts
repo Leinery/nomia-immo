@@ -23,6 +23,9 @@ export const rentPaymentsTable = pgTable("rent_payments", {
   contractId: integer("contract_id").references(() => contractsTable.id, { onDelete: "set null" }),
   matchStatus: text("match_status").notNull().default("unmatched"), // 'matched' | 'unmatched' | 'ignored'
   matchedAutomatically: integer("matched_automatically").notNull().default(0), // boolean as int
+  // Category for Nebenkostenabrechnung / Steuerberater
+  // 'rent' | 'utility' | 'maintenance' | 'management' | 'insurance' | 'tax' | 'other'
+  category: text("category"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
