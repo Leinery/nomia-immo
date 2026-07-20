@@ -10,6 +10,7 @@ export const unitsTable = pgTable("units", {
   floor: integer("floor"),
   area: numeric("area", { precision: 8, scale: 2 }),
   rooms: numeric("rooms", { precision: 4, scale: 1 }),
+  unitType: text("unit_type").notNull().default("residential"),
   status: text("status").notNull().default("vacant"),
   monthlyRent: numeric("monthly_rent", { precision: 10, scale: 2 }),
   deposit: numeric("deposit", { precision: 10, scale: 2 }),

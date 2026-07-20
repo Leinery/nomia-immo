@@ -137,6 +137,7 @@ export const ListUnitsResponseItem = zod.object({
   "floor": zod.number().nullish(),
   "area": zod.number().nullish(),
   "rooms": zod.number().nullish(),
+  "unitType": zod.enum(['residential', 'garage', 'parking']).optional(),
   "status": zod.enum(['vacant', 'occupied', 'renovation']),
   "monthlyRent": zod.number().nullish(),
   "deposit": zod.number().nullish(),
@@ -155,12 +156,14 @@ export const CreateUnitParams = zod.object({
 
 
 export const createUnitBodyStatusDefault = `vacant`;
+export const createUnitBodyUnitTypeDefault = `residential`;
 
 export const CreateUnitBody = zod.object({
   "name": zod.string().min(1),
   "floor": zod.number().optional(),
   "area": zod.number().optional(),
   "rooms": zod.number().optional(),
+  "unitType": zod.enum(['residential', 'garage', 'parking']).default(createUnitBodyUnitTypeDefault),
   "status": zod.enum(['vacant', 'occupied', 'renovation']).default(createUnitBodyStatusDefault),
   "monthlyRent": zod.number().optional(),
   "deposit": zod.number().optional(),
@@ -174,6 +177,7 @@ export const CreateUnitResponse = zod.object({
   "floor": zod.number().nullish(),
   "area": zod.number().nullish(),
   "rooms": zod.number().nullish(),
+  "unitType": zod.enum(['residential', 'garage', 'parking']).optional(),
   "status": zod.enum(['vacant', 'occupied', 'renovation']),
   "monthlyRent": zod.number().nullish(),
   "deposit": zod.number().nullish(),
@@ -196,6 +200,7 @@ export const GetUnitResponse = zod.object({
   "floor": zod.number().nullish(),
   "area": zod.number().nullish(),
   "rooms": zod.number().nullish(),
+  "unitType": zod.enum(['residential', 'garage', 'parking']).optional(),
   "status": zod.enum(['vacant', 'occupied', 'renovation']),
   "monthlyRent": zod.number().nullish(),
   "deposit": zod.number().nullish(),
@@ -216,6 +221,7 @@ export const UpdateUnitBody = zod.object({
   "floor": zod.number().optional(),
   "area": zod.number().optional(),
   "rooms": zod.number().optional(),
+  "unitType": zod.enum(['residential', 'garage', 'parking']).optional(),
   "status": zod.enum(['vacant', 'occupied', 'renovation']).optional(),
   "monthlyRent": zod.number().optional(),
   "deposit": zod.number().optional(),
@@ -229,6 +235,7 @@ export const UpdateUnitResponse = zod.object({
   "floor": zod.number().nullish(),
   "area": zod.number().nullish(),
   "rooms": zod.number().nullish(),
+  "unitType": zod.enum(['residential', 'garage', 'parking']).optional(),
   "status": zod.enum(['vacant', 'occupied', 'renovation']),
   "monthlyRent": zod.number().nullish(),
   "deposit": zod.number().nullish(),

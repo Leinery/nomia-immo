@@ -20,6 +20,7 @@ const router: IRouter = Router();
 function serializeUnit(u: typeof unitsTable.$inferSelect) {
   return {
     ...u,
+    unitType: u.unitType ?? 'residential',
     area: u.area != null ? parseFloat(u.area) : null,
     rooms: u.rooms != null ? parseFloat(u.rooms) : null,
     monthlyRent: u.monthlyRent != null ? parseFloat(u.monthlyRent) : null,

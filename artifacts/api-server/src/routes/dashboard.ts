@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, count, sql, and } from "drizzle-orm";
 import { db, propertiesTable, unitsTable, contractsTable, documentsTable } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
@@ -11,15 +11,16 @@ const router: IRouter = Router();
 
 router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   const [propCount] = await db.select({ count: count() }).from(propertiesTable);
-  const [unitCount] = await db.select({ count: count() }).from(unitsTable);
+  const [unitCount] = await db.select({ count: count() }).from(unitsTable)
+    .where(eq(unitsTable.unitType, "residential"));
   const [occupiedCount] = await db
     .select({ count: count() })
     .from(unitsTable)
-    .where(eq(unitsTable.status, "occupied"));
+    .where(and(eq(unitsTable.unitType, "residential"), eq(unitsTable.status, "occupied")));
   const [vacantCount] = await db
     .select({ count: count() })
     .from(unitsTable)
-    .where(eq(unitsTable.status, "vacant"));
+    .where(and(eq(unitsTable.unitType, "residential"), eq(unitsTable.status, "vacant")));
   const [docCount] = await db.select({ count: count() }).from(documentsTable);
   const [activeContractCount] = await db
     .select({ count: count() })

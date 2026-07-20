@@ -174,7 +174,7 @@ export default function PropertyDetail() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-mono">{units?.length || 0}</div>
+            <div className="text-2xl font-bold font-mono">{units?.filter(u => (u.unitType ?? 'residential') === 'residential').length || 0}</div>
           </CardContent>
         </Card>
         <Card className="shadow-sm">
@@ -184,7 +184,7 @@ export default function PropertyDetail() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-green-600 dark:text-green-500">
-              {units?.filter(u => u.status === 'occupied').length || 0}
+              {units?.filter(u => (u.unitType ?? 'residential') === 'residential' && u.status === 'occupied').length || 0}
             </div>
           </CardContent>
         </Card>
@@ -195,7 +195,7 @@ export default function PropertyDetail() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-500">
-              {units?.filter(u => u.status === 'vacant').length || 0}
+              {units?.filter(u => (u.unitType ?? 'residential') === 'residential' && u.status === 'vacant').length || 0}
             </div>
           </CardContent>
         </Card>

@@ -85,6 +85,14 @@ export const UnitStatus = {
   renovation: 'renovation',
 } as const;
 
+export type UnitType = typeof UnitType[keyof typeof UnitType];
+
+export const UnitType = {
+  residential: 'residential',
+  garage: 'garage',
+  parking: 'parking',
+} as const;
+
 export interface Unit {
   id: number;
   propertyId: number;
@@ -95,6 +103,7 @@ export interface Unit {
   area?: number | null;
   /** @nullable */
   rooms?: number | null;
+  unitType?: UnitType;
   status: UnitStatus;
   /** @nullable */
   monthlyRent?: number | null;
@@ -120,6 +129,7 @@ export interface UnitInput {
   floor?: number;
   area?: number;
   rooms?: number;
+  unitType?: UnitType;
   status?: UnitInputStatus;
   monthlyRent?: number;
   deposit?: number;
@@ -140,6 +150,7 @@ export interface UnitUpdate {
   floor?: number;
   area?: number;
   rooms?: number;
+  unitType?: UnitType;
   status?: UnitUpdateStatus;
   monthlyRent?: number;
   deposit?: number;
