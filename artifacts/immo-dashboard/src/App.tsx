@@ -14,6 +14,7 @@ import ContractsList from '@/pages/contracts/index';
 import DocumentsList from '@/pages/documents/index';
 import UtilityCostsList from '@/pages/utility-costs/index';
 import UtilityStatementsList from '@/pages/utility-statements/index';
+import BankingPage from '@/pages/banking/index';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/utility-costs" component={UtilityCostsList} />
         <Route path="/utility-statements" component={UtilityStatementsList} />
         <Route path="/documents" component={DocumentsList} />
+        <Route path="/banking" component={BankingPage} />
         <Route component={NotFound} />
       </Switch>
     </Shell>

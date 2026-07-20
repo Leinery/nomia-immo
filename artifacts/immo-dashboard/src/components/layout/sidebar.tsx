@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "wouter"
-import { LayoutDashboard, Building2, Users, FileText, Euro, Receipt, FileSpreadsheet } from "lucide-react"
+import { LayoutDashboard, Building2, Users, FileText, Euro, Receipt, FileSpreadsheet, Landmark } from "lucide-react"
 import nomiaLogo from "@assets/0_33951-_Nomia_RM_AB1_1784575571250.jpg"
 import { cn } from "@/lib/utils"
 
@@ -19,6 +19,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
     { title: "Nebenkosten",    href: "/utility-costs",      icon: Euro            },
     { title: "Abrechnungen",   href: "/utility-statements", icon: Receipt         },
     { title: "Dokumente",      href: "/documents",          icon: FileSpreadsheet },
+    { title: "Banking",        href: "/banking",            icon: Landmark        },
   ]
 
   return (

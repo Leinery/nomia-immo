@@ -5,3 +5,4 @@ export * from "./contracts";
 export * from "./documents";
 export * from "./utility-costs";
 export * from "./utility-statements";
+export * from "./rent-payments";

@@ -8,6 +8,7 @@ import documentsRouter from "./documents";
 import utilityCostsRouter from "./utility-costs";
 import utilityStatementsRouter from "./utility-statements";
 import dashboardRouter from "./dashboard";
+import bankingRouter from "./banking";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(documentsRouter);
 router.use(utilityCostsRouter);
 router.use(utilityStatementsRouter);
 router.use(dashboardRouter);
+router.use(bankingRouter);
 
 export default router;
