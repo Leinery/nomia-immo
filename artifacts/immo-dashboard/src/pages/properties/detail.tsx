@@ -174,7 +174,7 @@ export default function PropertyDetail() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-mono">{property.totalUnits || units?.length || 0}</div>
+            <div className="text-2xl font-bold font-mono">{units?.length || 0}</div>
           </CardContent>
         </Card>
         <Card className="shadow-sm">
