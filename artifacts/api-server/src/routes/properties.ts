@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, propertiesTable } from "@workspace/db";
+import { eq, count, and } from "drizzle-orm";
+import { db, propertiesTable, unitsTable } from "@workspace/db";
 import {
   ListPropertiesResponse,
   CreatePropertyBody,
@@ -15,16 +15,28 @@ import {
 
 const router: IRouter = Router();
 
-function serializeProperty(p: typeof propertiesTable.$inferSelect) {
+function serializeProperty(p: typeof propertiesTable.$inferSelect, liveUnitCount?: number) {
   return {
     ...p,
     purchasePrice: p.purchasePrice != null ? parseFloat(p.purchasePrice) : null,
+    // Override stored totalUnits with live count from units table if available
+    totalUnits: liveUnitCount ?? p.totalUnits ?? 0,
   };
 }
 
 router.get("/properties", async (_req, res): Promise<void> => {
   const rows = await db.select().from(propertiesTable).orderBy(propertiesTable.createdAt);
-  res.json(ListPropertiesResponse.parse(rows.map(serializeProperty)));
+
+  // Count residential units per property from the units table
+  const unitCounts = await db
+    .select({ propertyId: unitsTable.propertyId, cnt: count() })
+    .from(unitsTable)
+    .where(eq(unitsTable.unitType, "residential"))
+    .groupBy(unitsTable.propertyId);
+
+  const countMap = new Map(unitCounts.map((r) => [r.propertyId, r.cnt]));
+
+  res.json(ListPropertiesResponse.parse(rows.map((p) => serializeProperty(p, countMap.get(p.id)))));
 });
 
 router.post("/properties", async (req, res): Promise<void> => {

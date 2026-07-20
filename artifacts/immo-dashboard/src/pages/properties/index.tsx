@@ -158,9 +158,9 @@ export default function PropertiesList() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="w-[300px]">Immobilie & Adresse</TableHead>
-                <TableHead>Typ</TableHead>
-                <TableHead className="text-right">Kaufpreis</TableHead>
+                <TableHead>Immobilie & Adresse</TableHead>
+                <TableHead className="hidden sm:table-cell">Typ</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Kaufpreis</TableHead>
                 <TableHead className="text-right">Einheiten</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
@@ -184,13 +184,13 @@ export default function PropertiesList() {
                       <div className="font-semibold text-foreground">{property.name}</div>
                       <div className="text-sm text-muted-foreground">{property.address}</div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="secondary" className="gap-1.5 font-normal">
                         {propertyTypes[property.type]?.icon}
                         {propertyTypes[property.type]?.label || property.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="hidden md:table-cell text-right font-mono">
                       {formatCurrency(property.purchasePrice)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
