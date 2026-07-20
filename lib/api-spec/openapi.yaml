@@ -3,20 +3,36 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Immobilienverwaltung API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: properties
+    description: Immobilien
+  - name: units
+    description: Wohneinheiten
+  - name: tenants
+    description: Mieter
+  - name: contracts
+    description: Mietverträge
+  - name: documents
+    description: Dokumente
+  - name: utility-costs
+    description: Nebenkosten
+  - name: utility-statements
+    description: Nebenkostenabrechnungen
+  - name: dashboard
+    description: Dashboard Übersicht
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +40,689 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Properties ──────────────────────────────────────────────────────────────
+  /properties:
+    get:
+      operationId: listProperties
+      tags: [properties]
+      summary: List all properties
+      responses:
+        "200":
+          description: List of properties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Property"
+    post:
+      operationId: createProperty
+      tags: [properties]
+      summary: Create a new property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+
+  /properties/{id}:
+    get:
+      operationId: getProperty
+      tags: [properties]
+      summary: Get a property by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateProperty
+      tags: [properties]
+      summary: Update a property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteProperty
+      tags: [properties]
+      summary: Delete a property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  # ─── Units ───────────────────────────────────────────────────────────────────
+  /properties/{propertyId}/units:
+    get:
+      operationId: listUnits
+      tags: [units]
+      summary: List units for a property
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of units
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Unit"
+    post:
+      operationId: createUnit
+      tags: [units]
+      summary: Create a unit in a property
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnitInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unit"
+
+  /units/{id}:
+    get:
+      operationId: getUnit
+      tags: [units]
+      summary: Get a unit by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unit"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUnit
+      tags: [units]
+      summary: Update a unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnitUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unit"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteUnit
+      tags: [units]
+      summary: Delete a unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  # ─── Tenants ─────────────────────────────────────────────────────────────────
+  /tenants:
+    get:
+      operationId: listTenants
+      tags: [tenants]
+      summary: List all tenants
+      responses:
+        "200":
+          description: List of tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tenant"
+    post:
+      operationId: createTenant
+      tags: [tenants]
+      summary: Create a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+
+  /tenants/{id}:
+    get:
+      operationId: getTenant
+      tags: [tenants]
+      summary: Get a tenant by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateTenant
+      tags: [tenants]
+      summary: Update a tenant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTenant
+      tags: [tenants]
+      summary: Delete a tenant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  # ─── Contracts ───────────────────────────────────────────────────────────────
+  /contracts:
+    get:
+      operationId: listContracts
+      tags: [contracts]
+      summary: List all contracts
+      parameters:
+        - name: unitId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: tenantId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of contracts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contract"
+    post:
+      operationId: createContract
+      tags: [contracts]
+      summary: Create a contract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+
+  /contracts/{id}:
+    get:
+      operationId: getContract
+      tags: [contracts]
+      summary: Get a contract by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateContract
+      tags: [contracts]
+      summary: Update a contract
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteContract
+      tags: [contracts]
+      summary: Delete a contract
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  # ─── Documents ───────────────────────────────────────────────────────────────
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List documents
+      parameters:
+        - name: propertyId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: unitId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: contractId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get document metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  # ─── Utility Costs ───────────────────────────────────────────────────────────
+  /utility-costs:
+    get:
+      operationId: listUtilityCosts
+      tags: [utility-costs]
+      summary: List utility costs
+      parameters:
+        - name: propertyId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of utility costs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UtilityCost"
+    post:
+      operationId: createUtilityCost
+      tags: [utility-costs]
+      summary: Create a utility cost entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UtilityCostInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UtilityCost"
+
+  /utility-costs/{id}:
+    patch:
+      operationId: updateUtilityCost
+      tags: [utility-costs]
+      summary: Update a utility cost entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UtilityCostUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UtilityCost"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteUtilityCost
+      tags: [utility-costs]
+      summary: Delete a utility cost entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  # ─── Utility Statements ──────────────────────────────────────────────────────
+  /utility-statements:
+    get:
+      operationId: listUtilityStatements
+      tags: [utility-statements]
+      summary: List utility statements
+      parameters:
+        - name: unitId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of utility statements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UtilityStatement"
+    post:
+      operationId: createUtilityStatement
+      tags: [utility-statements]
+      summary: Create/generate a utility statement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UtilityStatementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UtilityStatement"
+
+  /utility-statements/{id}:
+    get:
+      operationId: getUtilityStatement
+      tags: [utility-statements]
+      summary: Get a utility statement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Utility statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UtilityStatement"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteUtilityStatement
+      tags: [utility-statements]
+      summary: Delete a utility statement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  # ─── Dashboard ───────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Dashboard KPI summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/rental-overview:
+    get:
+      operationId: getRentalOverview
+      tags: [dashboard]
+      summary: Rental overview with unit status
+      responses:
+        "200":
+          description: Rental overview
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RentalOverviewItem"
+
+  /dashboard/income-by-month:
+    get:
+      operationId: getIncomeByMonth
+      tags: [dashboard]
+      summary: Monthly income for the past 12 months
+      responses:
+        "200":
+          description: Monthly income data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyIncome"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +733,470 @@ components:
       required:
         - status
 
+    # ─── Property ──────────────────────────────────────────────────────────────
+    Property:
+      type: object
+      required: [id, name, address, type, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        type:
+          type: string
+          enum: [apartment_building, house, commercial, land]
+        description:
+          type: ["string", "null"]
+        purchasePrice:
+          type: ["number", "null"]
+        purchaseYear:
+          type: ["integer", "null"]
+        totalUnits:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    PropertyInput:
+      type: object
+      required: [name, address, type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        address:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [apartment_building, house, commercial, land]
+        description:
+          type: string
+        purchasePrice:
+          type: number
+        purchaseYear:
+          type: integer
+        totalUnits:
+          type: integer
+          default: 1
+
+    PropertyUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        type:
+          type: string
+          enum: [apartment_building, house, commercial, land]
+        description:
+          type: string
+        purchasePrice:
+          type: number
+        purchaseYear:
+          type: integer
+        totalUnits:
+          type: integer
+
+    # ─── Unit ──────────────────────────────────────────────────────────────────
+    Unit:
+      type: object
+      required: [id, propertyId, name, status, createdAt]
+      properties:
+        id:
+          type: integer
+        propertyId:
+          type: integer
+        name:
+          type: string
+        floor:
+          type: ["integer", "null"]
+        area:
+          type: ["number", "null"]
+        rooms:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [vacant, occupied, renovation]
+        monthlyRent:
+          type: ["number", "null"]
+        deposit:
+          type: ["number", "null"]
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    UnitInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        floor:
+          type: integer
+        area:
+          type: number
+        rooms:
+          type: number
+        status:
+          type: string
+          enum: [vacant, occupied, renovation]
+          default: vacant
+        monthlyRent:
+          type: number
+        deposit:
+          type: number
+        description:
+          type: string
+
+    UnitUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        floor:
+          type: integer
+        area:
+          type: number
+        rooms:
+          type: number
+        status:
+          type: string
+          enum: [vacant, occupied, renovation]
+        monthlyRent:
+          type: number
+        deposit:
+          type: number
+        description:
+          type: string
+
+    # ─── Tenant ────────────────────────────────────────────────────────────────
+    Tenant:
+      type: object
+      required: [id, firstName, lastName, createdAt]
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        dateOfBirth:
+          type: ["string", "null"]
+          format: date
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    TenantInput:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+        phone:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    TenantUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        dateOfBirth:
+          type: string
+        notes:
+          type: string
+
+    # ─── Contract ──────────────────────────────────────────────────────────────
+    Contract:
+      type: object
+      required: [id, unitId, tenantId, startDate, monthlyRent, status, createdAt]
+      properties:
+        id:
+          type: integer
+        unitId:
+          type: integer
+        tenantId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: ["string", "null"]
+          format: date
+        monthlyRent:
+          type: number
+        deposit:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [active, terminated, pending]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    ContractInput:
+      type: object
+      required: [unitId, tenantId, startDate, monthlyRent]
+      properties:
+        unitId:
+          type: integer
+        tenantId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        monthlyRent:
+          type: number
+        deposit:
+          type: number
+        status:
+          type: string
+          enum: [active, terminated, pending]
+          default: active
+        notes:
+          type: string
+
+    ContractUpdate:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        monthlyRent:
+          type: number
+        deposit:
+          type: number
+        status:
+          type: string
+          enum: [active, terminated, pending]
+        notes:
+          type: string
+
+    # ─── Document ──────────────────────────────────────────────────────────────
+    Document:
+      type: object
+      required: [id, name, fileUrl, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: ["string", "null"]
+        fileUrl:
+          type: string
+        mimeType:
+          type: ["string", "null"]
+        fileSize:
+          type: ["integer", "null"]
+        propertyId:
+          type: ["integer", "null"]
+        unitId:
+          type: ["integer", "null"]
+        contractId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── UtilityCost ───────────────────────────────────────────────────────────
+    UtilityCost:
+      type: object
+      required: [id, propertyId, year, month, category, amount, createdAt]
+      properties:
+        id:
+          type: integer
+        propertyId:
+          type: integer
+        year:
+          type: integer
+        month:
+          type: integer
+        category:
+          type: string
+          enum: [heating, water, electricity, maintenance, insurance, garbage, elevator, cleaning, other]
+        amount:
+          type: number
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    UtilityCostInput:
+      type: object
+      required: [propertyId, year, month, category, amount]
+      properties:
+        propertyId:
+          type: integer
+        year:
+          type: integer
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        category:
+          type: string
+          enum: [heating, water, electricity, maintenance, insurance, garbage, elevator, cleaning, other]
+        amount:
+          type: number
+        description:
+          type: string
+
+    UtilityCostUpdate:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        category:
+          type: string
+          enum: [heating, water, electricity, maintenance, insurance, garbage, elevator, cleaning, other]
+        amount:
+          type: number
+        description:
+          type: string
+
+    # ─── UtilityStatement ──────────────────────────────────────────────────────
+    UtilityStatement:
+      type: object
+      required: [id, unitId, year, totalCosts, tenantShare, advancePayments, balance, createdAt]
+      properties:
+        id:
+          type: integer
+        unitId:
+          type: integer
+        year:
+          type: integer
+        totalCosts:
+          type: number
+        tenantShare:
+          type: number
+        advancePayments:
+          type: number
+        balance:
+          type: number
+        notes:
+          type: ["string", "null"]
+        breakdown:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    UtilityStatementInput:
+      type: object
+      required: [unitId, year, totalCosts, tenantShare, advancePayments]
+      properties:
+        unitId:
+          type: integer
+        year:
+          type: integer
+        totalCosts:
+          type: number
+        tenantShare:
+          type: number
+        advancePayments:
+          type: number
+        notes:
+          type: string
+        breakdown:
+          type: string
+
+    # ─── Dashboard ─────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required: [totalProperties, totalUnits, occupiedUnits, vacantUnits, monthlyIncome, totalDocuments, activeContracts]
+      properties:
+        totalProperties:
+          type: integer
+        totalUnits:
+          type: integer
+        occupiedUnits:
+          type: integer
+        vacantUnits:
+          type: integer
+        monthlyIncome:
+          type: number
+        totalDocuments:
+          type: integer
+        activeContracts:
+          type: integer
+        occupancyRate:
+          type: number
+
+    RentalOverviewItem:
+      type: object
+      required: [propertyId, propertyName, unitId, unitName, status]
+      properties:
+        propertyId:
+          type: integer
+        propertyName:
+          type: string
+        unitId:
+          type: integer
+        unitName:
+          type: string
+        status:
+          type: string
+          enum: [vacant, occupied, renovation]
+        tenantName:
+          type: ["string", "null"]
+        monthlyRent:
+          type: ["number", "null"]
+        contractStart:
+          type: ["string", "null"]
+        contractEnd:
+          type: ["string", "null"]
+
+    MonthlyIncome:
+      type: object
+      required: [month, year, income]
+      properties:
+        month:
+          type: integer
+        year:
+          type: integer
+        income:
+          type: number
+        label:
+          type: string
