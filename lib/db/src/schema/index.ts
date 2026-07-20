@@ -6,3 +6,5 @@ export * from "./documents";
 export * from "./utility-costs";
 export * from "./utility-statements";
 export * from "./rent-payments";
+export * from "./meters";
+export * from "./meter-readings";

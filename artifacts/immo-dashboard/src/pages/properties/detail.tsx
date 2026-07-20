@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import MetersSection from "./meters";
 
 const unitSchema = z.object({
   name: z.string().min(1, "Name ist erforderlich"),
@@ -293,6 +294,12 @@ export default function PropertyDetail() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Meters */}
+      <MetersSection
+        propertyId={property.id}
+        units={(units ?? []).map(u => ({ id: u.id, name: u.name, unitType: (u as any).unitType ?? "residential" }))}
+      />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">

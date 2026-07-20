@@ -9,6 +9,7 @@ import utilityCostsRouter from "./utility-costs";
 import utilityStatementsRouter from "./utility-statements";
 import dashboardRouter from "./dashboard";
 import bankingRouter from "./banking";
+import metersRouter from "./meters";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(utilityCostsRouter);
 router.use(utilityStatementsRouter);
 router.use(dashboardRouter);
 router.use(bankingRouter);
+router.use(metersRouter);
 
 export default router;
