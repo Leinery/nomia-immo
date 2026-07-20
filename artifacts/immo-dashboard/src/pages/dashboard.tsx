@@ -12,7 +12,7 @@ export default function Dashboard() {
   const { data: income, isLoading: isLoadingIncome } = useGetIncomeByMonth();
 
   return (
-    <div className="flex-1 space-y-8 p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
+    <div className="flex-1 space-y-8 p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground font-serif">Cockpit</h1>
@@ -21,11 +21,11 @@ export default function Dashboard() {
       </div>
 
       {isLoadingSummary ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map(i => <Card key={i} className="h-32 animate-pulse bg-muted" />)}
         </div>
       ) : summary ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Immobilien</CardTitle>
@@ -84,7 +84,7 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-7">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-7">
         <Card className="lg:col-span-4 shadow-sm">
           <CardHeader>
             <CardTitle>Einnahmen (12 Monate)</CardTitle>
@@ -144,7 +144,7 @@ export default function Dashboard() {
                  {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-muted animate-pulse rounded-md" />)}
                </div>
             ) : overview && overview.length > 0 ? (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">

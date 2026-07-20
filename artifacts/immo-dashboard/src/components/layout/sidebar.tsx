@@ -4,9 +4,11 @@ import { LayoutDashboard, Building2, Users, FileText, Euro, Receipt, FileSpreads
 import nomiaLogo from "@assets/0_33951-_Nomia_RM_AB1_1784575571250.jpg"
 import { cn } from "@/lib/utils"
 
-interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {}
+interface SidebarContentProps {
+  onNavigate?: () => void;
+}
 
-export function Sidebar({ className, ...props }: SidebarNavProps) {
+export function SidebarContent({ onNavigate }: SidebarContentProps) {
   const [location] = useLocation()
 
   const navItems = [
@@ -20,13 +22,7 @@ export function Sidebar({ className, ...props }: SidebarNavProps) {
   ]
 
   return (
-    <div
-      className={cn(
-        "bg-sidebar text-sidebar-foreground border-r border-sidebar-border w-64 shrink-0 flex flex-col h-full",
-        className,
-      )}
-      {...props}
-    >
+    <>
       {/* Logo header — white strip so the JPG renders cleanly */}
       <div className="bg-white px-6 py-4 border-b border-sidebar-border/30">
         <img
@@ -37,7 +33,7 @@ export function Sidebar({ className, ...props }: SidebarNavProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive =
             location === item.href ||
@@ -46,6 +42,7 @@ export function Sidebar({ className, ...props }: SidebarNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => onNavigate?.()}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors font-sans",
                 isActive
@@ -71,6 +68,22 @@ export function Sidebar({ className, ...props }: SidebarNavProps) {
           Real Estate. Real Value.
         </p>
       </div>
+    </>
+  )
+}
+
+interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {}
+
+export function Sidebar({ className, ...props }: SidebarNavProps) {
+  return (
+    <div
+      className={cn(
+        "hidden md:flex bg-sidebar text-sidebar-foreground border-r border-sidebar-border w-64 shrink-0 flex-col h-full",
+        className,
+      )}
+      {...props}
+    >
+      <SidebarContent />
     </div>
   )
 }

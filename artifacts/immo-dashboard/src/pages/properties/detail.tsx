@@ -156,7 +156,7 @@ export default function PropertyDetail() {
   }
 
   return (
-    <div className="flex-1 space-y-8 p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
+    <div className="flex-1 space-y-8 p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
       <div className="flex items-center gap-4">
         <Link href="/properties" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9 border border-input bg-background shadow-sm">
           <ArrowLeft className="w-4 h-4" />
@@ -223,7 +223,7 @@ export default function PropertyDetail() {
             Einheit hinzufügen
           </Button>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>

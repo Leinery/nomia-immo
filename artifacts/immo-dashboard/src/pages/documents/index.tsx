@@ -129,7 +129,7 @@ export default function DocumentsList() {
   };
 
   return (
-    <div className="flex-1 space-y-8 p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
+    <div className="flex-1 space-y-8 p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-serif text-foreground">Dokumente</h1>
@@ -142,7 +142,7 @@ export default function DocumentsList() {
       </div>
 
       <Card className="shadow-sm">
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
