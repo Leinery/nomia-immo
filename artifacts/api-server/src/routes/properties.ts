@@ -169,7 +169,11 @@ router.get("/properties/:id/rent-overview", async (req, res): Promise<void> => {
         .then((rows) => rows.filter((d) => d.year === currentYear && d.month === currentMonth))
     : [];
 
-  // Current month payments (positive amounts only)
+  // Payments for current month — also accept payments from the last 7 days of the
+  // prior month (e.g. Stadt Seelze pays on the 30th for the 1st of next month).
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 25); // 25th of prior month
+  const windowStart = prevMonthDate.toISOString().slice(0, 10);
+
   const payments = contractIds.length > 0
     ? await db.select({
         contractId: rentPaymentsTable.contractId,
@@ -181,11 +185,11 @@ router.get("/properties/:id/rent-overview", async (req, res): Promise<void> => {
           rows.filter((p) => {
             if (!p.bookingDate) return false;
             const d = new Date(p.bookingDate);
-            return (
-              d.getFullYear() === currentYear &&
-              d.getMonth() + 1 === currentMonth &&
-              parseFloat(p.amount as string) > 0
-            );
+            if (parseFloat(p.amount as string) <= 0) return false;
+            // Within current month
+            if (d.getFullYear() === currentYear && d.getMonth() + 1 === currentMonth) return true;
+            // From the 25th of prior month onward (advance payments)
+            return p.bookingDate >= windowStart && d < new Date(currentYear, now.getMonth(), 1);
           }),
         )
     : [];
