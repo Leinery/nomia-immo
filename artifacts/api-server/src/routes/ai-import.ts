@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { uploadToOneDrive, buildOneDrivePath, categoryToFolder } from "../lib/onedrive";
+import { uploadToOneDrive, buildSmartPath } from "../lib/onedrive";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 5 } });
@@ -145,18 +145,18 @@ router.post(
 
       // ── Async OneDrive push ────────────────────────────────────────────────
       const docType = parsed.documentType ?? "unbekannt";
-      const catFolder = docType === "mietvertrag" ? "Mietverträge"
-                      : docType === "zahlung"      ? "Banking"
-                      : docType === "objekt"       ? "Sonstiges"
-                      : "Sonstiges";
+      // Map AI document type to category key for smart routing
+      const aiCategory = docType === "mietvertrag" ? "mietvertrag"
+                       : docType === "zahlung"      ? "banking"
+                       : docType === "kredit"       ? "kredit"
+                       : docType === "objekt"       ? "sonstiges"
+                       : "sonstiges";
 
-      const onedrivePaths: string[] = [];
       for (const file of files) {
         (async () => {
           try {
-            const propFolder = "Allgemein"; // no propertyId at analysis time
             const filename = file.originalname || `ki-import-${Date.now()}.pdf`;
-            const remotePath = buildOneDrivePath(propFolder, catFolder, filename);
+            const remotePath = buildSmartPath("", aiCategory, filename);
             await uploadToOneDrive(remotePath, file.buffer, file.mimetype);
             console.log("[OneDrive] KI-Import uploaded:", remotePath);
           } catch (err) {
