@@ -314,7 +314,7 @@ export default function KiImportPage() {
                   <div className="px-3 pb-3 flex items-center gap-2">
                     <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <Input
-                      placeholder="Hinweis für die KI (optional) — z.B. „Screenshot Kredit, Leinstraße 31""
+                      placeholder={"Hinweis für die KI (optional) — z.B. \u201EScreenshot Kredit, Leinstra\xDFe 31\u201C"}
                       value={fileComments[i] ?? ""}
                       onChange={e => setComment(i, e.target.value)}
                       className="h-7 text-xs border-0 border-b rounded-none bg-transparent px-0 focus-visible:ring-0 placeholder:text-muted-foreground/60"
@@ -426,7 +426,7 @@ export default function KiImportPage() {
                   <div className="space-y-1.5">
                     <Label className="text-xs">Was soll stattdessen passieren?</Label>
                     <Textarea
-                      placeholder="z.B. „Das ist ein Kredit für Leinstraße 31, bitte als Kreditdokument anlegen" oder „Nur als PDF ablegen unter Steuern""
+                      placeholder={"z.B. 'Das ist ein Kredit fuer Leinstrasse 31, bitte als Kreditdokument anlegen' oder 'Nur als PDF ablegen unter Steuern'"}
                       value={altComment}
                       onChange={e => setAltComment(e.target.value)}
                       rows={3}
