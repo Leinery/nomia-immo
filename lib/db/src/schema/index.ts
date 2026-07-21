@@ -10,3 +10,5 @@ export * from "./meters";
 export * from "./meter-readings";
 export * from "./rent-debits";
 export * from "./loans";
+export * from "./communications";
+export * from "./maintenance-issues";

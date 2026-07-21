@@ -2969,6 +2969,212 @@ export function useGetIncomeByMonth<TData = Awaited<ReturnType<typeof getIncomeB
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+// ─── Sollstellungen ───────────────────────────────────────────────────────────
+
+export type SollstellungItem = {
+  debitId: number | null;
+  contractId: number;
+  tenantId: number;
+  tenantName: string;
+  tenantEmail: string | null;
+  unitId: number;
+  unitName: string;
+  propertyId: number;
+  propertyName: string;
+  year: number;
+  month: number;
+  kaltmiete: number;
+  nebenkostenvorauszahlung: number;
+  total: number;
+  paid: number;
+  balance: number;
+  status: "bezahlt" | "differenz" | "offen";
+};
+
+export const getSollstellungenUrl = (params: { year?: number; month?: number }) => {
+  const q = new URLSearchParams();
+  if (params.year)  q.set("year",  String(params.year));
+  if (params.month) q.set("month", String(params.month));
+  return `/api/sollstellungen?${q}`;
+};
+
+export const getSollstellungen = async (
+  params: { year?: number; month?: number },
+  options?: RequestInit,
+): Promise<SollstellungItem[]> =>
+  customFetch<SollstellungItem[]>(getSollstellungenUrl(params), { ...options, method: "GET" });
+
+export const getSollstellungenQueryKey = (params: { year?: number; month?: number }) =>
+  ["sollstellungen", params] as const;
+
+export function useGetSollstellungen(
+  params: { year?: number; month?: number },
+  options?: { query?: UseQueryOptions<SollstellungItem[]>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<SollstellungItem[]> & { queryKey: QueryKey } {
+  const queryKey = options?.query?.queryKey ?? getSollstellungenQueryKey(params);
+  const query = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => getSollstellungen(params, { signal, ...options?.request }),
+    ...options?.query,
+  }) as UseQueryResult<SollstellungItem[]> & { queryKey: QueryKey };
+  return withQueryKey(query, queryKey);
+}
+
+// ─── Communications ───────────────────────────────────────────────────────────
+
+export type CommunicationItem = {
+  id: number;
+  tenantId: number | null;
+  contractId: number | null;
+  channel: string;
+  direction: string;
+  subject: string | null;
+  body: string;
+  status: string;
+  sentAt: string | null;
+  trackingNumber: string | null;
+  mahnungLevel: number | null;
+  relatedType: string | null;
+  relatedId: number | null;
+  createdAt: string;
+};
+
+export const getCommunicationsUrl = (params: { tenantId?: number }) => {
+  const q = new URLSearchParams();
+  if (params.tenantId) q.set("tenantId", String(params.tenantId));
+  return `/api/communications?${q}`;
+};
+
+export const getCommunications = async (
+  params: { tenantId?: number },
+  options?: RequestInit,
+): Promise<CommunicationItem[]> =>
+  customFetch<CommunicationItem[]>(getCommunicationsUrl(params), { ...options, method: "GET" });
+
+export const getCommunicationsQueryKey = (params: { tenantId?: number }) =>
+  ["communications", params] as const;
+
+export function useGetCommunications(
+  params: { tenantId?: number },
+  options?: { query?: UseQueryOptions<CommunicationItem[]>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<CommunicationItem[]> & { queryKey: QueryKey } {
+  const queryKey = options?.query?.queryKey ?? getCommunicationsQueryKey(params);
+  const query = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => getCommunications(params, { signal, ...options?.request }),
+    ...options?.query,
+  }) as UseQueryResult<CommunicationItem[]> & { queryKey: QueryKey };
+  return withQueryKey(query, queryKey);
+}
+
+export const useCreateCommunication = (options?: { mutation?: UseMutationOptions<CommunicationItem, ErrorType<unknown>, Record<string, any>> }) =>
+  useMutation({
+    mutationFn: (body: Record<string, any>) =>
+      customFetch<CommunicationItem>("/api/communications", { method: "POST", body: JSON.stringify(body) }),
+    ...options?.mutation,
+  });
+
+export const useSendEmail = (options?: { mutation?: UseMutationOptions<CommunicationItem & { messageId: string }, ErrorType<unknown>, Record<string, any>> }) =>
+  useMutation({
+    mutationFn: (body: Record<string, any>) =>
+      customFetch<CommunicationItem & { messageId: string }>("/api/communications/send-email", { method: "POST", body: JSON.stringify(body) }),
+    ...options?.mutation,
+  });
+
+export const useGetSmtpStatus = (options?: { query?: UseQueryOptions<{ configured: boolean }> }) => {
+  const queryKey = ["smtp-status"] as const;
+  return useQuery({
+    queryKey,
+    queryFn: () => customFetch<{ configured: boolean }>("/api/communications/smtp-status"),
+    staleTime: 60_000,
+    ...options?.query,
+  });
+};
+
+export const useUpdateCommunication = (options?: { mutation?: UseMutationOptions<CommunicationItem, ErrorType<unknown>, { id: number } & Record<string, any>> }) =>
+  useMutation({
+    mutationFn: ({ id, ...body }: { id: number } & Record<string, any>) =>
+      customFetch<CommunicationItem>(`/api/communications/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    ...options?.mutation,
+  });
+
+export const useDeleteCommunication = (options?: { mutation?: UseMutationOptions<void, ErrorType<unknown>, number> }) =>
+  useMutation({
+    mutationFn: (id: number) =>
+      customFetch<void>(`/api/communications/${id}`, { method: "DELETE" }),
+    ...options?.mutation,
+  });
+
+// ─── Maintenance Issues ───────────────────────────────────────────────────────
+
+export type MaintenanceIssueItem = {
+  id: number;
+  propertyId: number;
+  propertyName: string;
+  unitId: number | null;
+  unitName: string | null;
+  tenantId: number | null;
+  tenantName: string | null;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  category: string;
+  reportedAt: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+};
+
+export const getMaintenanceIssuesUrl = (params: { propertyId?: number; status?: string }) => {
+  const q = new URLSearchParams();
+  if (params.propertyId) q.set("propertyId", String(params.propertyId));
+  if (params.status)     q.set("status", params.status);
+  return `/api/maintenance-issues?${q}`;
+};
+
+export const getMaintenanceIssues = async (
+  params: { propertyId?: number; status?: string },
+  options?: RequestInit,
+): Promise<MaintenanceIssueItem[]> =>
+  customFetch<MaintenanceIssueItem[]>(getMaintenanceIssuesUrl(params), { ...options, method: "GET" });
+
+export const getMaintenanceIssuesQueryKey = (params: { propertyId?: number; status?: string }) =>
+  ["maintenance-issues", params] as const;
+
+export function useGetMaintenanceIssues(
+  params: { propertyId?: number; status?: string },
+  options?: { query?: UseQueryOptions<MaintenanceIssueItem[]>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<MaintenanceIssueItem[]> & { queryKey: QueryKey } {
+  const queryKey = options?.query?.queryKey ?? getMaintenanceIssuesQueryKey(params);
+  const query = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => getMaintenanceIssues(params, { signal, ...options?.request }),
+    ...options?.query,
+  }) as UseQueryResult<MaintenanceIssueItem[]> & { queryKey: QueryKey };
+  return withQueryKey(query, queryKey);
+}
+
+export const useCreateMaintenanceIssue = (options?: { mutation?: UseMutationOptions<MaintenanceIssueItem, ErrorType<unknown>, Record<string, any>> }) =>
+  useMutation({
+    mutationFn: (body: Record<string, any>) =>
+      customFetch<MaintenanceIssueItem>("/api/maintenance-issues", { method: "POST", body: JSON.stringify(body) }),
+    ...options?.mutation,
+  });
+
+export const useUpdateMaintenanceIssue = (options?: { mutation?: UseMutationOptions<MaintenanceIssueItem, ErrorType<unknown>, { id: number } & Record<string, any>> }) =>
+  useMutation({
+    mutationFn: ({ id, ...body }: { id: number } & Record<string, any>) =>
+      customFetch<MaintenanceIssueItem>(`/api/maintenance-issues/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    ...options?.mutation,
+  });
+
+export const useDeleteMaintenanceIssue = (options?: { mutation?: UseMutationOptions<void, ErrorType<unknown>, number> }) =>
+  useMutation({
+    mutationFn: (id: number) =>
+      customFetch<void>(`/api/maintenance-issues/${id}`, { method: "DELETE" }),
+    ...options?.mutation,
+  });
+
 
 
 

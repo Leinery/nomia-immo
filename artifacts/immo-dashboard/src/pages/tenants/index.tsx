@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { 
   useListTenants, 
   useCreateTenant, 
@@ -34,6 +35,7 @@ type TenantFormValues = z.infer<typeof tenantSchema>;
 
 export default function TenantsList() {
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const { data: tenants, isLoading } = useListTenants();
   
@@ -168,7 +170,7 @@ export default function TenantsList() {
                 </TableRow>
               ) : (
                 tenants?.map((tenant) => (
-                  <TableRow key={tenant.id} className="group">
+                  <TableRow key={tenant.id} className="group cursor-pointer hover:bg-[#f4f7f5]/60" onClick={() => navigate(`/tenants/${tenant.id}`)}>
                     <TableCell className="font-medium text-foreground">
                       {tenant.firstName} {tenant.lastName}
                     </TableCell>

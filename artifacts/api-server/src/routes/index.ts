@@ -13,6 +13,9 @@ import metersRouter from "./meters";
 import storageRouter from "./storage";
 import rentDebitsRouter from "./rent-debits";
 import loansRouter from "./loans";
+import sollstellungenRouter from "./sollstellungen";
+import communicationsRouter from "./communications";
+import maintenanceIssuesRouter from "./maintenance-issues";
 
 const router: IRouter = Router();
 
@@ -30,5 +33,8 @@ router.use(bankingRouter);
 router.use(metersRouter);
 router.use(rentDebitsRouter);
 router.use(loansRouter);
+router.use(sollstellungenRouter);
+router.use(communicationsRouter);
+router.use(maintenanceIssuesRouter);
 
 export default router;
