@@ -2724,7 +2724,15 @@ export type LoanItem = {
   loanAmount: number; interestRate: number; repaymentRate: number;
   startDate: string; fixedRateEndDate: string | null;
   repaymentType: string; notes: string | null; createdAt: string;
-  // computed
+  // Bank details
+  loanIban: string | null; loanBic: string | null;
+  debitAccountIban: string | null; accountHolder: string | null;
+  // Sondertilgung
+  annualSondertilgung: number | null; sondertilgungUsedThisYear: number;
+  freeSondertilgung: number | null;
+  // Balance
+  currentBalanceOverride: number | null;
+  // Computed
   monthlyPayment: number; currentBalance: number;
   monthlyInterest: number; monthlyRepayment: number;
   balanceAtFixedEnd: number | null;
@@ -2733,7 +2741,8 @@ export type LoanItem = {
 export type LoanScheduleRow = {
   year: number; month?: number;
   openingBalance: number; interest: number; repayment: number;
-  annuitat: number; closingBalance: number; isFixedRateEnd?: boolean;
+  sondertilgung?: number; annuitat: number; closingBalance: number;
+  isFixedRateEnd?: boolean;
 };
 
 export type LoanScheduleResponse = { monthlyPayment: number; schedule: LoanScheduleRow[] };
@@ -2743,6 +2752,10 @@ export type CreateLoanBody = {
   loanAmount: number; interestRate: number; repaymentRate: number;
   startDate: string; fixedRateEndDate?: string | null;
   repaymentType?: string; notes?: string | null;
+  loanIban?: string | null; loanBic?: string | null;
+  debitAccountIban?: string | null; accountHolder?: string | null;
+  annualSondertilgung?: number | null; sondertilgungUsedThisYear?: number | null;
+  currentBalanceOverride?: number | null;
 };
 
 export type UpdateLoanBody = Partial<CreateLoanBody>;
@@ -2789,24 +2802,31 @@ export function useGetLoan<TData = Awaited<ReturnType<typeof getLoan>>, TError =
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-// Schedule
-export const getGetLoanScheduleQueryKey = (id: number, view: string) => [`/api/loans/${id}/schedule`, view] as const;
-export const getLoanSchedule = async (id: number, view: 'yearly' | 'monthly' = 'yearly', options?: RequestInit): Promise<LoanScheduleResponse> =>
-  customFetch<LoanScheduleResponse>(`/api/loans/${id}/schedule?view=${view}`, { ...options, method: 'GET' });
+// Schedule — supports withSondertilgung toggle
+export const getGetLoanScheduleQueryKey = (id: number, view: string, withSonder = false) =>
+  [`/api/loans/${id}/schedule`, view, withSonder] as const;
+export const getLoanSchedule = async (
+  id: number, view: 'yearly' | 'monthly' = 'yearly', withSonder = false, options?: RequestInit,
+): Promise<LoanScheduleResponse> =>
+  customFetch<LoanScheduleResponse>(
+    `/api/loans/${id}/schedule?view=${view}${withSonder ? '&sondertilgung=true' : ''}`,
+    { ...options, method: 'GET' },
+  );
 export const getGetLoanScheduleQueryOptions = <TData = Awaited<ReturnType<typeof getLoanSchedule>>, TError = ErrorType<unknown>>(
-  id: number, view: 'yearly' | 'monthly' = 'yearly',
+  id: number, view: 'yearly' | 'monthly' = 'yearly', withSonder = false,
   options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getLoanSchedule>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getGetLoanScheduleQueryKey(id, view);
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoanSchedule>>> = ({ signal }) => getLoanSchedule(id, view, { signal, ...requestOptions });
+  const queryKey = queryOptions?.queryKey ?? getGetLoanScheduleQueryKey(id, view, withSonder);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoanSchedule>>> = ({ signal }) =>
+    getLoanSchedule(id, view, withSonder, { signal, ...requestOptions });
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getLoanSchedule>>, TError, TData> & { queryKey: QueryKey };
 };
 export function useGetLoanSchedule<TData = Awaited<ReturnType<typeof getLoanSchedule>>, TError = ErrorType<unknown>>(
-  id: number, view: 'yearly' | 'monthly' = 'yearly',
+  id: number, view: 'yearly' | 'monthly' = 'yearly', withSonder = false,
   options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getLoanSchedule>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetLoanScheduleQueryOptions(id, view, options);
+  const queryOptions = getGetLoanScheduleQueryOptions(id, view, withSonder, options);
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
   return withQueryKey(query, queryOptions.queryKey);
 }
