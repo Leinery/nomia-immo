@@ -65,15 +65,28 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt ohne Markdown-Codeblöcke, in die
   }
 }
 
-Wichtige Hinweise:
-- documentType "kredit" wenn Darlehen, Finanzierung, Hypothek, Kreditdetails erkannt werden
-- documentType "mietvertrag" wenn Mietvertrag erkannt wird
-- documentType "objekt" wenn Objektdetails/Einheitenliste
-- documentType "zahlung" nur wenn reiner Zahlungsbeleg ohne Kreditbezug
+ENTSCHEIDUNGSREGELN fuer documentType (in dieser Reihenfolge pruefen):
+
+1. KREDIT — setze documentType="kredit" wenn IRGENDEINES dieser Kriterien zutrifft:
+   - Der Nutzerhinweis enthaelt ein dieser Woerter: Kredit, Darlehen, Finanzierung, Hypothek, Baudarlehen, Annuitaet, Sollzinssatz, Zinsbindung, Tilgung
+   - Das Dokument zeigt: Ursprungsdarlehen, Restschuld, Reststand, monatliche Rate, Sollzinssatz, Zinsbindungsende, Auszahlungsbetrag, Tilgungsrate
+   - Das Dokument ist eine Kreditbestaetigung, ein Darlehensvertrag oder eine Banking-Ansicht die ein Darlehenskonto zeigt
+
+2. MIETVERTRAG — setze documentType="mietvertrag" wenn: Mietvertrag, Mietverhaeltnis, Mietzins, Kaution im Dokument
+
+3. OBJEKT — setze documentType="objekt" wenn: Grundriss, Einheitenliste, Flaechen-Uebersicht, Objektdaten
+
+4. ZAHLUNG — NUR wenn: reiner Kontoauszug OHNE Kreditbezug, Ueberweisungsbeleg, Lastschrift
+
+5. UNBEKANNT — nur als letzter Ausweg
+
+WICHTIG: Ein Volksbank-/Banking-Screenshot der ein Darlehen oder einen Kredit zeigt ist IMMER documentType="kredit", NICHT "zahlung".
+WICHTIG: Wenn der Nutzerhinweis "Kredit" enthaelt, ist documentType IMMER "kredit".
+
+Weitere Hinweise:
 - Datumsformat immer YYYY-MM-DD
 - Geldbetraege als Zahl ohne Waehrungszeichen (z.B. 850.00 fuer 850,00 EUR)
-- Fehlende Werte als null, nicht als leeren String
-- Wenn der Nutzer sagt "lege einen Kredit an" o.ae., setze documentType="kredit"`;
+- Fehlende Werte als null, nicht als leeren String`;
 
 
 function fileToContentBlock(file: Express.Multer.File): any {
