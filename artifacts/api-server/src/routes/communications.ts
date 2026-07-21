@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import {
-  db, communicationsTable, tenantsTable, contractsTable,
+  db, communicationsTable, tenantsTable,
 } from "@workspace/db";
 import { sendMail, isSmtpConfigured } from "../lib/mailer";
+import { isPingenConfigured, getPingenSenderConfig, sendLetterViaPingen, type DeliveryProduct } from "../lib/pingen";
+import { generateLetterPdf } from "../lib/letter-pdf";
 
 const router: IRouter = Router();
 
@@ -106,6 +108,100 @@ router.post("/communications/send-email", async (req, res): Promise<void> => {
 // ─── POST /communications/smtp-status — check if SMTP is configured ───────────
 router.get("/communications/smtp-status", async (_req, res): Promise<void> => {
   res.json({ configured: isSmtpConfigured() });
+});
+
+// ─── GET /communications/pingen-status ────────────────────────────────────────
+router.get("/communications/pingen-status", (_req, res): void => {
+  const configured = isPingenConfigured();
+  const sender     = configured ? getPingenSenderConfig() : null;
+  res.json({ configured, sender });
+});
+
+// ─── POST /communications/send-letter — send physical letter via Pingen ───────
+router.post("/communications/send-letter", async (req, res): Promise<void> => {
+  const {
+    tenantId, contractId,
+    subject, body,
+    // Recipient (can override tenant address)
+    recipientName, addressLine1, zip, city, country = "DE",
+    deliveryProduct = "economy",
+  } = req.body as {
+    tenantId:        number;
+    contractId?:     number;
+    subject:         string;
+    body:            string;
+    recipientName:   string;
+    addressLine1:    string;
+    zip:             string;
+    city:            string;
+    country?:        string;
+    deliveryProduct?: DeliveryProduct;
+  };
+
+  if (!tenantId || !subject || !body || !recipientName || !addressLine1 || !zip || !city) {
+    res.status(400).json({ error: "tenantId, subject, body, recipientName, addressLine1, zip und city sind erforderlich" });
+    return;
+  }
+
+  if (!isPingenConfigured()) {
+    res.status(503).json({
+      error: "Pingen nicht konfiguriert",
+      hint:  "Bitte PINGEN_CLIENT_ID, PINGEN_CLIENT_SECRET und PINGEN_ORGANISATION_ID als Replit Secrets setzen.",
+    });
+    return;
+  }
+
+  const sender = getPingenSenderConfig();
+  let pdfBuffer: Buffer;
+
+  try {
+    pdfBuffer = await generateLetterPdf({
+      sender,
+      recipientName,
+      addressLine1,
+      zip,
+      city,
+      country,
+      subject,
+      body,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "PDF-Generierung fehlgeschlagen", detail: err.message });
+    return;
+  }
+
+  let pingenResult: Awaited<ReturnType<typeof sendLetterViaPingen>>;
+  try {
+    pingenResult = await sendLetterViaPingen({
+      pdfBuffer,
+      filename:        `brief-mieter-${tenantId}-${Date.now()}.pdf`,
+      recipientName,
+      addressLine1,
+      zip,
+      city,
+      country,
+      deliveryProduct,
+    });
+  } catch (err: any) {
+    res.status(502).json({ error: "Versand über Pingen fehlgeschlagen", detail: err.message });
+    return;
+  }
+
+  // Log in communications table
+  const channel = deliveryProduct === "registered" ? "letter_registered" : "letter_post";
+  const [row] = await db.insert(communicationsTable).values({
+    tenantId:       Number(tenantId),
+    contractId:     contractId ? Number(contractId) : null,
+    channel,
+    direction:      "outbound",
+    subject,
+    body,
+    status:         "sent",
+    sentAt:         new Date(),
+    trackingNumber: pingenResult.trackingNumber ?? pingenResult.pingenId,
+  }).returning();
+
+  res.status(201).json({ ...row, pingenId: pingenResult.pingenId, pingenStatus: pingenResult.status });
 });
 
 // ─── PATCH /communications/:id ────────────────────────────────────────────────

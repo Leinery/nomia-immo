@@ -15,7 +15,10 @@ import {
   ArrowLeft, Mail, Send, FileText, Phone, Pencil, AlertCircle,
   MailOpen, BookmarkCheck, StickyNote, MessageSquarePlus, Wrench,
   Building2, User, MapPin, Smartphone, CreditCard, Hash, Save, X,
+  Mails, Loader2, CheckCircle2,
 } from "lucide-react";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +95,17 @@ type SendState = {
   trackingNumber: string;
 };
 
+type LetterDialogState = {
+  recipientName: string;
+  addressLine1:  string;
+  zip:           string;
+  city:          string;
+  country:       string;
+  subject:       string;
+  body:          string;
+  deliveryProduct: "economy" | "fast" | "registered";
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TenantDetailPage() {
@@ -112,7 +126,9 @@ export default function TenantDetailPage() {
   const logMutation        = useCreateCommunication();
   const updateMutation     = useUpdateTenant();
 
-  const [sendDialog, setSendDialog]         = useState<SendState | null>(null);
+  const [sendDialog, setSendDialog]               = useState<SendState | null>(null);
+  const [letterDialog, setLetterDialog]           = useState<LetterDialogState | null>(null);
+  const [letterSending, setLetterSending]         = useState(false);
   const [editingStammdaten, setEditingStammdaten] = useState(false);
 
   // ── Edit form ────────────────────────────────────────────────────────────────
@@ -170,6 +186,45 @@ export default function TenantDetailPage() {
   // ── Send / log dialog ────────────────────────────────────────────────────────
   function openSendDialog() {
     setSendDialog({ channel: "email_out", subject: "", body: "", trackingNumber: "" });
+  }
+
+  // ── Pingen letter dialog ──────────────────────────────────────────────────────
+  function openLetterDialog() {
+    const t = tenant as any;
+    const street = [t.street, t.houseNumber].filter(Boolean).join(" ");
+    setLetterDialog({
+      recipientName:   t.companyName || [tenant!.firstName, tenant!.lastName].filter(Boolean).join(" "),
+      addressLine1:    street,
+      zip:             t.zipCode   ?? "",
+      city:            t.city      ?? "",
+      country:         "DE",
+      subject:         "",
+      body:            "",
+      deliveryProduct: "economy",
+    });
+  }
+
+  async function handleSendLetter() {
+    if (!letterDialog || !tenant) return;
+    setLetterSending(true);
+    try {
+      const res = await fetch(`${BASE}/api/communications/send-letter`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ tenantId, ...letterDialog }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.hint ?? err.detail ?? err.error ?? "Unbekannter Fehler");
+      }
+      qc.invalidateQueries({ queryKey: getCommunicationsQueryKey({ tenantId }) });
+      toast({ title: "Brief zur Post aufgegeben", description: "Pingen hat den Brief angenommen." });
+      setLetterDialog(null);
+    } catch (err: any) {
+      toast({ title: "Versand fehlgeschlagen", description: err.message, variant: "destructive" });
+    } finally {
+      setLetterSending(false);
+    }
   }
 
   async function handleSend() {
@@ -255,9 +310,14 @@ export default function TenantDetailPage() {
                 : <><Pencil className="h-3.5 w-3.5" />Stammdaten bearbeiten</>}
             </Button>
             {!editingStammdaten && (
-              <Button className="bg-[#1C3829] hover:bg-[#2a5240] text-white" size="sm" onClick={openSendDialog}>
-                <MessageSquarePlus className="h-4 w-4 mr-1.5" />Nachricht
-              </Button>
+              <>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={openLetterDialog}>
+                  <Mails className="h-3.5 w-3.5" />Brief senden
+                </Button>
+                <Button className="bg-[#1C3829] hover:bg-[#2a5240] text-white" size="sm" onClick={openSendDialog}>
+                  <MessageSquarePlus className="h-4 w-4 mr-1.5" />Nachricht
+                </Button>
+              </>
             )}
           </div>
         </CardHeader>
@@ -535,6 +595,114 @@ export default function TenantDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* ── Pingen Brief-Dialog ───────────────────────────────────────────────── */}
+      {letterDialog && (
+        <Dialog open onOpenChange={() => !letterSending && setLetterDialog(null)}>
+          <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mails className="h-4 w-4" /> Brief versenden via Pingen
+              </DialogTitle>
+              <DialogDescription>
+                Das Dokument wird als PDF generiert und über pingen.com physisch zugestellt.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-1">
+              {/* Empfänger */}
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Empfänger</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Name / Firma</Label>
+                    <Input
+                      value={letterDialog.recipientName}
+                      onChange={e => setLetterDialog(p => p ? { ...p, recipientName: e.target.value } : null)}
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-xs">Straße + Hausnummer</Label>
+                    <Input
+                      value={letterDialog.addressLine1}
+                      onChange={e => setLetterDialog(p => p ? { ...p, addressLine1: e.target.value } : null)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">PLZ</Label>
+                    <Input
+                      value={letterDialog.zip}
+                      onChange={e => setLetterDialog(p => p ? { ...p, zip: e.target.value } : null)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Ort</Label>
+                    <Input
+                      value={letterDialog.city}
+                      onChange={e => setLetterDialog(p => p ? { ...p, city: e.target.value } : null)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Versandart */}
+              <div className="space-y-1.5">
+                <Label>Versandart</Label>
+                <Select
+                  value={letterDialog.deliveryProduct}
+                  onValueChange={(v: any) => setLetterDialog(p => p ? { ...p, deliveryProduct: v } : null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="economy">Economypost (B-Post, günstiger)</SelectItem>
+                    <SelectItem value="fast">Priorität (A-Post, schneller)</SelectItem>
+                    <SelectItem value="registered">Einschreiben (mit Zustellnachweis)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Betreff */}
+              <div className="space-y-1.5">
+                <Label>Betreff</Label>
+                <Input
+                  placeholder="z.B. Nebenkostenabrechnung 2024"
+                  value={letterDialog.subject}
+                  onChange={e => setLetterDialog(p => p ? { ...p, subject: e.target.value } : null)}
+                />
+              </div>
+
+              {/* Brieftext */}
+              <div className="space-y-1.5">
+                <Label>Brieftext</Label>
+                <Textarea
+                  rows={10}
+                  className="resize-none font-mono text-sm"
+                  placeholder={"Sehr geehrte Damen und Herren,\n\n…\n\nMit freundlichen Grüßen"}
+                  value={letterDialog.body}
+                  onChange={e => setLetterDialog(p => p ? { ...p, body: e.target.value } : null)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLetterDialog(null)} disabled={letterSending}>
+                Abbrechen
+              </Button>
+              <Button
+                onClick={handleSendLetter}
+                disabled={letterSending || !letterDialog.body.trim() || !letterDialog.subject.trim() || !letterDialog.recipientName.trim() || !letterDialog.addressLine1.trim() || !letterDialog.zip.trim() || !letterDialog.city.trim()}
+                className="bg-[#1C3829] hover:bg-[#2a5240] text-white gap-1.5"
+              >
+                {letterSending
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Wird gesendet…</>
+                  : <><Mails className="h-3.5 w-3.5" />Brief aufgeben</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ── Send / Log dialog ─────────────────────────────────────────────────── */}
       {sendDialog && (
