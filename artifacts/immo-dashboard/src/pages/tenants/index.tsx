@@ -182,8 +182,10 @@ export default function TenantsList() {
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead>Name / Firma</TableHead>
-                <TableHead className="hidden md:table-cell">Straße + Nr.</TableHead>
-                <TableHead className="hidden lg:table-cell">PLZ / Ort</TableHead>
+                <TableHead className="hidden md:table-cell">Straße</TableHead>
+                <TableHead className="hidden xl:table-cell">Hausnr.</TableHead>
+                <TableHead className="hidden xl:table-cell">PLZ</TableHead>
+                <TableHead className="hidden lg:table-cell">Ort</TableHead>
                 <TableHead className="hidden md:table-cell">E-Mail</TableHead>
                 <TableHead>Telefon</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
@@ -192,11 +194,11 @@ export default function TenantsList() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Lade Daten…</TableCell>
+                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Lade Daten…</TableCell>
                 </TableRow>
               ) : tenants?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-14 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-14 text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto text-muted mb-3 opacity-30" />
                     <p>Noch keine Mieter angelegt.</p>
                   </TableCell>
@@ -230,23 +232,29 @@ export default function TenantsList() {
                       </div>
                     </TableCell>
 
-                    {/* Straße + Nr. */}
+                    {/* Straße */}
                     <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                      {(tenant as any).street || (tenant as any).houseNumber ? (
+                      {(tenant as any).street ? (
                         <div className="flex items-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 shrink-0" />
-                          <span>
-                            {[(tenant as any).street, (tenant as any).houseNumber].filter(Boolean).join(" ")}
-                          </span>
+                          {(tenant as any).street}
                         </div>
                       ) : "—"}
                     </TableCell>
 
-                    {/* PLZ / Ort */}
+                    {/* Hausnr. */}
+                    <TableCell className="hidden xl:table-cell text-sm text-muted-foreground">
+                      {(tenant as any).houseNumber ?? "—"}
+                    </TableCell>
+
+                    {/* PLZ */}
+                    <TableCell className="hidden xl:table-cell text-sm text-muted-foreground tabular-nums">
+                      {(tenant as any).zipCode ?? "—"}
+                    </TableCell>
+
+                    {/* Ort */}
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                      {(tenant as any).zipCode || (tenant as any).city
-                        ? [(tenant as any).zipCode, (tenant as any).city].filter(Boolean).join(" ")
-                        : "—"}
+                      {(tenant as any).city ?? "—"}
                     </TableCell>
 
                     {/* E-Mail */}
