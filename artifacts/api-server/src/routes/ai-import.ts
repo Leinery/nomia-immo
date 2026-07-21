@@ -89,11 +89,15 @@ router.post(
       return;
     }
 
+    // Optional user hint passed as form field "comment"
+    const userComment = typeof req.body?.comment === "string" ? req.body.comment.trim() : "";
+
+    const introText = userComment
+      ? `Analysiere dieses Dokument. Der Nutzer hat folgenden Hinweis gegeben: "${userComment}"\nExtrahiere alle relevanten Informationen als JSON.`
+      : "Analysiere dieses Dokument und extrahiere alle relevanten Informationen als JSON.";
+
     const contentBlocks: any[] = [
-      {
-        type: "text",
-        text: "Analysiere dieses Dokument und extrahiere alle relevanten Informationen als JSON.",
-      },
+      { type: "text", text: introText },
       ...files.map(fileToContentBlock),
     ];
 
