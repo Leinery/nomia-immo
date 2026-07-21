@@ -14,7 +14,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Building2, Plus, Pencil, Trash2, Home, Building, Factory,
-  Map as MapIcon, Search, ChevronRight, AreaChart,
+  Map as MapIcon, Search, ChevronRight, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -108,6 +108,7 @@ export default function PropertiesList() {
     units: filtered.reduce((s, p) => s + ((p as any).unitsByType?.residential ?? 0) + ((p as any).unitsByType?.garage ?? 0) + ((p as any).unitsByType?.parking ?? 0), 0),
     area: filtered.reduce((s, p) => s + ((p as any).totalArea ?? 0), 0),
     rent: filtered.reduce((s, p) => s + ((p as any).monthlyRent ?? 0), 0),
+    recentPayments: filtered.reduce((s, p) => s + ((p as any).recentPayments ?? 0), 0),
   }), [filtered]);
 
   const onSubmit = async (data: PropertyFormValues) => {
@@ -198,7 +199,10 @@ export default function PropertiesList() {
                 <TableHead className="text-right hidden md:table-cell">Gesamtfläche</TableHead>
                 <TableHead className="hidden lg:table-cell">Kategorie</TableHead>
                 <TableHead className="hidden xl:table-cell">Eigentümer</TableHead>
-                <TableHead className="text-right">Monatl. Miete</TableHead>
+                <TableHead className="text-right hidden lg:table-cell">Kaltmiete</TableHead>
+                <TableHead className="text-right hidden lg:table-cell">NK + HK</TableHead>
+                <TableHead className="text-right">Sollstellung</TableHead>
+                <TableHead className="text-right hidden md:table-cell">Eingang (45T)</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
@@ -247,11 +251,45 @@ export default function PropertiesList() {
                       <TableCell className="hidden xl:table-cell text-sm text-muted-foreground">
                         {ps.owner ?? "—"}
                       </TableCell>
+                      {/* Kaltmiete */}
+                      <TableCell className="text-right hidden lg:table-cell tabular-nums text-sm text-muted-foreground">
+                        {formatCurrency((ps as any).kaltmietenTotal ?? 0)}
+                      </TableCell>
+                      {/* NK + HK */}
+                      <TableCell className="text-right hidden lg:table-cell tabular-nums text-sm text-muted-foreground">
+                        {formatCurrency(((ps as any).nebenkostenTotal ?? 0) + ((ps as any).heizkostenTotal ?? 0))}
+                      </TableCell>
+                      {/* Sollstellung */}
                       <TableCell className="text-right">
                         <div className="text-sm font-semibold tabular-nums">
                           {ps.monthlyRent != null ? formatCurrency(ps.monthlyRent) : "—"}
                         </div>
-                        <div className="text-xs text-muted-foreground">Soll/Monat</div>
+                        <div className="text-xs text-muted-foreground hidden lg:block">
+                          {(ps as any).kaltmietenTotal != null && (
+                            <span>{formatCurrency((ps as any).kaltmietenTotal)} + {formatCurrency(((ps as any).nebenkostenTotal ?? 0) + ((ps as any).heizkostenTotal ?? 0))} NK/HK</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      {/* Eingang 45T + Saldo */}
+                      <TableCell className="text-right hidden md:table-cell">
+                        {(() => {
+                          const soll = ps.monthlyRent ?? 0;
+                          const paid = (ps as any).recentPayments ?? 0;
+                          const diff = paid - soll;
+                          const balanced = Math.abs(diff) < 0.01;
+                          return (
+                            <div className="space-y-0.5">
+                              <div className="text-sm tabular-nums font-medium">{formatCurrency(paid)}</div>
+                              <div className={`flex items-center justify-end gap-1 text-xs ${balanced ? "text-emerald-600" : diff > 0 ? "text-blue-600" : "text-red-500"}`}>
+                                {balanced
+                                  ? <><CheckCircle2 className="w-3 h-3" /> ausgeglichen</>
+                                  : diff > 0
+                                    ? <><CheckCircle2 className="w-3 h-3" /> +{formatCurrency(diff)}</>
+                                    : <><AlertTriangle className="w-3 h-3" /> {formatCurrency(diff)}</>}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div
@@ -286,9 +324,16 @@ export default function PropertiesList() {
                     {totals.area.toLocaleString("de-DE")} m²
                   </td>
                   <td className="hidden lg:table-cell" />
+                  <td className="hidden xl:table-cell" />
+                  <td className="hidden lg:table-cell" />
+                  <td className="hidden lg:table-cell" />
                   <td className="px-4 py-2.5 text-right tabular-nums">
                     {formatCurrency(totals.rent)}
-                    <div className="text-xs font-normal text-muted-foreground">Mieteinnahmen (Soll)</div>
+                    <div className="text-xs font-normal text-muted-foreground">Sollstellung</div>
+                  </td>
+                  <td className="px-4 py-2.5 text-right hidden md:table-cell tabular-nums">
+                    {formatCurrency(totals.recentPayments)}
+                    <div className="text-xs font-normal text-muted-foreground">Eingang (45T)</div>
                   </td>
                   <td />
                 </tr>

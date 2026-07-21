@@ -39,8 +39,19 @@ router.get("/properties", async (_req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const activeContracts = await db.select({
     id: contractsTable.id, unitId: contractsTable.unitId,
-    monthlyRent: contractsTable.monthlyRent, nebenkostenvorauszahlung: contractsTable.nebenkostenvorauszahlung,
+    monthlyRent: contractsTable.monthlyRent,
+    nebenkostenvorauszahlung: contractsTable.nebenkostenvorauszahlung,
+    heizkostenvorauszahlung: contractsTable.heizkostenvorauszahlung,
   }).from(contractsTable).where(or(isNull(contractsTable.endDate), gte(contractsTable.endDate, today)));
+
+  // Recent payments (last 45 days – catches month-end payments for the next month)
+  const since = new Date();
+  since.setDate(since.getDate() - 45);
+  const sinceStr = since.toISOString().slice(0, 10);
+  const recentPaymentsRaw = await db.select({
+    contractId: rentPaymentsTable.contractId,
+    amount: rentPaymentsTable.amount,
+  }).from(rentPaymentsTable).where(gte(rentPaymentsTable.bookingDate, sinceStr));
 
   // Build maps
   const unitsByProperty = new Map<number, typeof allUnits>();
@@ -51,6 +62,22 @@ router.get("/properties", async (_req, res): Promise<void> => {
   const contractsByUnitId = new Map<number, typeof activeContracts[0]>();
   for (const c of activeContracts) contractsByUnitId.set(c.unitId, c);
 
+  // contract_id → property_id (via unit)
+  const contractToProperty = new Map<number, number>();
+  for (const u of allUnits) {
+    const c = contractsByUnitId.get(u.id);
+    if (c) contractToProperty.set(c.id, u.propertyId);
+  }
+
+  // Sum recent payments per property
+  const recentByProperty = new Map<number, number>();
+  for (const rp of recentPaymentsRaw) {
+    if (!rp.contractId) continue;
+    const propId = contractToProperty.get(rp.contractId);
+    if (!propId) continue;
+    recentByProperty.set(propId, (recentByProperty.get(propId) ?? 0) + parseFloat(rp.amount));
+  }
+
   const result = properties.map((p) => {
     const propUnits = unitsByProperty.get(p.id) ?? [];
     const residential = propUnits.filter((u) => (u.unitType ?? "residential") === "residential").length;
@@ -58,18 +85,32 @@ router.get("/properties", async (_req, res): Promise<void> => {
     const parking     = propUnits.filter((u) => u.unitType === "parking").length;
     const commercial  = propUnits.filter((u) => u.unitType === "commercial").length;
     const totalArea = propUnits.reduce((s, u) => s + (u.area ? parseFloat(u.area) : 0), 0);
-    const monthlyRent = propUnits.reduce((s, u) => {
+
+    const kaltmietenTotal = propUnits.reduce((s, u) => {
       const c = contractsByUnitId.get(u.id);
-      if (!c) return s;
-      return s + parseFloat(c.monthlyRent) + parseFloat(c.nebenkostenvorauszahlung ?? "0");
+      return s + (c ? parseFloat(c.monthlyRent) : 0);
     }, 0);
+    const nebenkostenTotal = propUnits.reduce((s, u) => {
+      const c = contractsByUnitId.get(u.id);
+      return s + (c ? parseFloat(c.nebenkostenvorauszahlung ?? "0") : 0);
+    }, 0);
+    const heizkostenTotal = propUnits.reduce((s, u) => {
+      const c = contractsByUnitId.get(u.id);
+      return s + (c ? parseFloat(c.heizkostenvorauszahlung ?? "0") : 0);
+    }, 0);
+    const monthlyRent = kaltmietenTotal + nebenkostenTotal + heizkostenTotal;
+    const recentPayments = Math.round((recentByProperty.get(p.id) ?? 0) * 100) / 100;
 
     return {
       ...serializeProperty(p),
       totalUnits: residential,
       unitsByType: { residential, garage, parking, commercial },
       totalArea: Math.round(totalArea * 10) / 10,
+      kaltmietenTotal: Math.round(kaltmietenTotal * 100) / 100,
+      nebenkostenTotal: Math.round(nebenkostenTotal * 100) / 100,
+      heizkostenTotal: Math.round(heizkostenTotal * 100) / 100,
       monthlyRent: Math.round(monthlyRent * 100) / 100,
+      recentPayments,
     };
   });
 

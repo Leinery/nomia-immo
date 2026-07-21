@@ -2688,7 +2688,11 @@ export type UnitRentOverviewItem = {
 export type PropertyWithSummary = PropertyType & {
   unitsByType: { residential: number; garage: number; parking: number; commercial: number };
   totalArea: number;
+  kaltmietenTotal: number;
+  nebenkostenTotal: number;
+  heizkostenTotal: number;
   monthlyRent: number;
+  recentPayments: number;
   owner?: string | null;
 };
 
