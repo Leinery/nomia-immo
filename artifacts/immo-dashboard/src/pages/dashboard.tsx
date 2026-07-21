@@ -1,15 +1,41 @@
+import { useState, useMemo } from "react";
 import { useGetDashboardSummary, useGetRentalOverview, useGetIncomeByMonth } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
-import { Building2, UserCheck, Euro, FileText } from "lucide-react";
+import { Building2, UserCheck, Euro, FileText, ChevronDown, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 export default function Dashboard() {
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary();
   const { data: overview, isLoading: isLoadingOverview } = useGetRentalOverview();
   const { data: income, isLoading: isLoadingIncome } = useGetIncomeByMonth();
+
+  // Group units by property for collapsible view
+  const propertyGroups = useMemo(() => {
+    if (!overview) return [];
+    const map = new Map<number, { propertyId: number; propertyName: string; units: typeof overview }>();
+    for (const item of overview) {
+      if (!map.has(item.propertyId)) {
+        map.set(item.propertyId, { propertyId: item.propertyId, propertyName: item.propertyName, units: [] });
+      }
+      map.get(item.propertyId)!.units.push(item);
+    }
+    return Array.from(map.values());
+  }, [overview]);
+
+  // All properties expanded by default
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set());
+  const toggleProperty = (id: number) =>
+    setExpandedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  // Initialise expanded state once data arrives
+  useMemo(() => {
+    if (propertyGroups.length > 0 && expandedIds.size === 0) {
+      setExpandedIds(new Set(propertyGroups.map(g => g.propertyId)));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propertyGroups.length]);
 
   return (
     <div className="flex-1 space-y-8 p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
@@ -138,49 +164,72 @@ export default function Dashboard() {
             <CardTitle>Schnellübersicht Einheiten</CardTitle>
             <CardDescription>Aktueller Status der Wohneinheiten</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 overflow-auto">
+          <CardContent className="flex-1 overflow-auto p-0">
             {isLoadingOverview ? (
-               <div className="space-y-4">
-                 {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-muted animate-pulse rounded-md" />)}
-               </div>
-            ) : overview && overview.length > 0 ? (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Einheit / Mieter</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Miete</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {overview.slice(0, 7).map((item) => (
-                      <TableRow key={`${item.propertyId}-${item.unitId}`}>
-                        <TableCell>
-                          <div className="font-medium text-foreground">{item.unitName}</div>
-                          <div className="text-xs text-muted-foreground truncate max-w-[150px]">
-                            {item.tenantName || 'Kein Mieter'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            item.status === 'occupied' ? 'success' : 
-                            item.status === 'vacant' ? 'warning' : 'info'
-                          }>
-                            {item.status === 'occupied' ? 'Vermietet' : 
-                             item.status === 'vacant' ? 'Leerstand' : 'Renovierung'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-medium">
-                          {formatCurrency(item.monthlyRent)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="space-y-2 p-4">
+                {[1, 2, 3].map(i => <div key={i} className="h-10 bg-muted animate-pulse rounded-md" />)}
+              </div>
+            ) : propertyGroups.length > 0 ? (
+              <div className="divide-y">
+                {propertyGroups.map((group) => {
+                  const isOpen = expandedIds.has(group.propertyId);
+                  const occupied = group.units.filter(u => u.status === "occupied").length;
+                  const groupRent = group.units.reduce((s, u) => s + (u.monthlyRent ?? 0), 0);
+                  return (
+                    <div key={group.propertyId}>
+                      {/* ── Property header row ── */}
+                      <button
+                        onClick={() => toggleProperty(group.propertyId)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                      >
+                        <span className="shrink-0 text-primary">
+                          {isOpen
+                            ? <ChevronDown className="w-4 h-4" />
+                            : <ChevronRight className="w-4 h-4" />}
+                        </span>
+                        <Building2 className="w-4 h-4 shrink-0 text-muted-foreground" />
+                        <span className="flex-1 font-semibold text-sm text-foreground truncate">
+                          {group.propertyName}
+                        </span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {occupied}/{group.units.length} vermietet
+                        </span>
+                        <span className="text-sm font-mono font-semibold text-foreground shrink-0 ml-2">
+                          {formatCurrency(groupRent)}
+                        </span>
+                      </button>
+
+                      {/* ── Units ── */}
+                      {isOpen && (
+                        <div className="bg-muted/10 divide-y divide-border/50">
+                          {group.units.map((item) => (
+                            <div key={item.unitId} className="flex items-center gap-3 pl-11 pr-4 py-2.5">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-foreground truncate">{item.unitName}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {item.tenantName ?? "Kein Mieter"}
+                                </div>
+                              </div>
+                              <Badge variant={
+                                item.status === "occupied" ? "success" :
+                                item.status === "vacant"   ? "warning" : "info"
+                              } className="shrink-0 text-[10px]">
+                                {item.status === "occupied" ? "Vermietet" :
+                                 item.status === "vacant"   ? "Leerstand" : "Renovierung"}
+                              </Badge>
+                              <span className="text-sm font-mono font-medium tabular-nums shrink-0 ml-2 text-foreground">
+                                {item.monthlyRent != null ? formatCurrency(item.monthlyRent) : "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground py-12 border-2 border-dashed rounded-md">
+              <div className="flex items-center justify-center text-muted-foreground py-12 border-2 border-dashed rounded-md m-4">
                 Keine Einheiten angelegt
               </div>
             )}
