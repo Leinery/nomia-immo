@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import {
   useGetProperty,
@@ -23,6 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft, Plus, Pencil, Trash2, Home, Car, ParkingSquare,
   Building2, Euro, Maximize2, MapPin, FileText, Loader2, ChevronDown,
+  TrendingUp, TrendingDown, Minus, Banknote, CreditCard, Receipt,
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -100,6 +102,34 @@ export default function PropertyDetail() {
   });
   const { data: rentOverview, isLoading: loadingOverview } = useGetPropertyRentOverview(propertyId, {
     query: { enabled: !!propertyId },
+  });
+
+  // Cashflow
+  const { data: cashflow, isLoading: loadingCashflow } = useQuery<{
+    kaltmietenTotal: number;
+    nebenkostenTotal: number;
+    totalIncome: number;
+    totalLoanPayments: number;
+    cashflow: number;
+    contractCount: number;
+    loans: {
+      id: number;
+      lenderName: string | null;
+      loanAmount: number;
+      currentBalance: number;
+      interestRate: number;
+      repaymentRate: number;
+      fixedRateEndDate: string | null;
+      monthlyPayment: number;
+    }[];
+  }>({
+    queryKey: ["cashflow", propertyId],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/properties/${propertyId}/cashflow`);
+      if (!res.ok) throw new Error("Cashflow konnte nicht geladen werden");
+      return res.json();
+    },
+    enabled: !!propertyId,
   });
 
   const updatePropertyMutation = useUpdateProperty();
@@ -366,6 +396,7 @@ export default function PropertyDetail() {
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">Übersicht</TabsTrigger>
+            <TabsTrigger value="cashflow">Cashflow</TabsTrigger>
             <TabsTrigger value="meters">Zähler</TabsTrigger>
           </TabsList>
 
@@ -500,6 +531,149 @@ export default function PropertyDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* ── Cashflow tab ──────────────────────────────────────────────── */}
+          <TabsContent value="cashflow" className="space-y-5 mt-4">
+            {loadingCashflow ? (
+              <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground text-sm">
+                <Loader2 className="w-5 h-5 animate-spin" /> Lade Cashflow…
+              </div>
+            ) : !cashflow ? (
+              <div className="text-center py-16 text-muted-foreground text-sm">Keine Daten verfügbar.</div>
+            ) : (
+              <>
+                {/* ── Cashflow-Ampel ─────────────────────────────────────────── */}
+                <Card className={`shadow-sm border-2 ${cashflow.cashflow >= 0 ? "border-emerald-200 bg-emerald-50/50" : "border-red-200 bg-red-50/50"}`}>
+                  <CardContent className="pt-6 pb-5">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`rounded-full p-3 ${cashflow.cashflow >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                          {cashflow.cashflow > 0.01
+                            ? <TrendingUp className="w-7 h-7" />
+                            : cashflow.cashflow < -0.01
+                              ? <TrendingDown className="w-7 h-7" />
+                              : <Minus className="w-7 h-7" />}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Monatlicher Cashflow</p>
+                          <p className={`text-3xl font-bold tabular-nums ${cashflow.cashflow >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                            {cashflow.cashflow >= 0 ? "+" : ""}{formatCurrency(cashflow.cashflow)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {cashflow.cashflow >= 0 ? "Cashflow positiv" : "Cashflow negativ"} · {cashflow.contractCount} aktive Mietverträge
+                          </p>
+                        </div>
+                      </div>
+                      {/* Mini-Formel */}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/80 border rounded-lg px-4 py-2.5 shrink-0">
+                        <span className="tabular-nums text-foreground font-medium">{formatCurrency(cashflow.kaltmietenTotal)}</span>
+                        <span className="text-muted-foreground">Kaltmiete</span>
+                        <span className="text-muted-foreground">−</span>
+                        <span className="tabular-nums text-foreground font-medium">{formatCurrency(cashflow.totalLoanPayments)}</span>
+                        <span className="text-muted-foreground">Kredite</span>
+                        <span className="text-muted-foreground">=</span>
+                        <span className={`tabular-nums font-bold ${cashflow.cashflow >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                          {cashflow.cashflow >= 0 ? "+" : ""}{formatCurrency(cashflow.cashflow)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* ── Einnahmen ──────────────────────────────────────────────── */}
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                      <Banknote className="w-4 h-4" /> Einnahmen (monatlich)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-muted/30 rounded-lg p-4">
+                        <p className="text-xs text-muted-foreground mb-1">Kaltmiete</p>
+                        <p className="text-xl font-bold tabular-nums text-foreground">{formatCurrency(cashflow.kaltmietenTotal)}</p>
+                      </div>
+                      <div className="bg-muted/30 rounded-lg p-4">
+                        <p className="text-xs text-muted-foreground mb-1">Nebenkostenvorauszahlung</p>
+                        <p className="text-xl font-bold tabular-nums text-foreground">{formatCurrency(cashflow.nebenkostenTotal)}</p>
+                      </div>
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4">
+                        <p className="text-xs text-muted-foreground mb-1">Gesamteinnahmen</p>
+                        <p className="text-xl font-bold tabular-nums text-emerald-700">{formatCurrency(cashflow.totalIncome)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* ── Kreditraten ────────────────────────────────────────────── */}
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" /> Kreditverpflichtungen (monatlich)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {cashflow.loans.length === 0 ? (
+                      <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                        Keine Kredite für diese Immobilie hinterlegt.
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader className="bg-muted/20">
+                          <TableRow>
+                            <TableHead>Kreditgeber</TableHead>
+                            <TableHead className="text-right">Darlehensbetrag</TableHead>
+                            <TableHead className="text-right hidden sm:table-cell">Restschuld</TableHead>
+                            <TableHead className="text-right hidden md:table-cell">Zins</TableHead>
+                            <TableHead className="text-right hidden md:table-cell">Tilgung</TableHead>
+                            <TableHead className="text-right">Rate / Monat</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {cashflow.loans.map((loan) => (
+                            <TableRow key={loan.id}>
+                              <TableCell className="font-medium text-sm">{loan.lenderName ?? "Unbekannte Bank"}</TableCell>
+                              <TableCell className="text-right tabular-nums text-sm">{formatCurrency(loan.loanAmount)}</TableCell>
+                              <TableCell className="text-right tabular-nums text-sm hidden sm:table-cell">
+                                {loan.currentBalance !== loan.loanAmount
+                                  ? <span className="text-amber-600">{formatCurrency(loan.currentBalance)}</span>
+                                  : formatCurrency(loan.currentBalance)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-sm hidden md:table-cell">{loan.interestRate.toFixed(2)} %</TableCell>
+                              <TableCell className="text-right tabular-nums text-sm hidden md:table-cell">{loan.repaymentRate.toFixed(2)} %</TableCell>
+                              <TableCell className="text-right tabular-nums text-sm font-semibold text-red-600">
+                                − {formatCurrency(loan.monthlyPayment)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                        {cashflow.loans.length > 1 && (
+                          <tfoot>
+                            <tr className="border-t-2 bg-muted/20 text-sm font-semibold">
+                              <td className="px-4 py-2.5" colSpan={5}>Gesamt Kreditraten</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-red-600">
+                                − {formatCurrency(cashflow.totalLoanPayments)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* ── Hinweis ────────────────────────────────────────────────── */}
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
+                  <Receipt className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>
+                    Der Cashflow berücksichtigt Kaltmiete abzüglich monatlicher Kreditraten (Zins + Tilgung).
+                    Nicht enthalten: Verwaltungskosten, Instandhaltungsrücklagen, Versicherungen, Steuer.
+                    Rate = Darlehensbetrag × (Zinssatz + Tilgungssatz) ÷ 1.200.
+                  </p>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           {/* ── Zähler tab ────────────────────────────────────────────────── */}

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, inArray, isNull, or, gte } from "drizzle-orm";
 import {
   db, propertiesTable, unitsTable, contractsTable,
-  tenantsTable, rentDebitsTable, rentPaymentsTable,
+  tenantsTable, rentDebitsTable, rentPaymentsTable, loansTable,
 } from "@workspace/db";
 import {
   CreatePropertyBody,
@@ -242,6 +242,78 @@ router.get("/properties/:id/rent-overview", async (req, res): Promise<void> => {
   });
 
   res.json(result);
+});
+
+// ─── GET /properties/:id/cashflow ────────────────────────────────────────────
+router.get("/properties/:id/cashflow", async (req, res): Promise<void> => {
+  const propertyId = parseInt(req.params.id);
+  if (isNaN(propertyId)) { res.status(400).json({ error: "Ungültige ID" }); return; }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Units for this property
+  const units = await db.select({ id: unitsTable.id })
+    .from(unitsTable).where(eq(unitsTable.propertyId, propertyId));
+  const unitIds = units.map((u) => u.id);
+
+  // Active contracts → Kaltmiete + Nebenkosten
+  const contracts = unitIds.length > 0
+    ? await db.select({
+        unitId: contractsTable.unitId,
+        monthlyRent: contractsTable.monthlyRent,
+        nk: contractsTable.nebenkostenvorauszahlung,
+        startDate: contractsTable.startDate,
+        endDate: contractsTable.endDate,
+      }).from(contractsTable)
+        .where(inArray(contractsTable.unitId, unitIds))
+        .then((rows) => rows.filter((c) => !c.endDate || c.endDate >= today))
+    : [];
+
+  const kaltmietenTotal = contracts.reduce((s, c) => s + parseFloat(c.monthlyRent), 0);
+  const nebenkostenTotal = contracts.reduce((s, c) => s + parseFloat(c.nk ?? "0"), 0);
+
+  // Loans for this property
+  const loans = await db.select({
+    id: loansTable.id,
+    lenderName: loansTable.lenderName,
+    loanAmount: loansTable.loanAmount,
+    interestRate: loansTable.interestRate,
+    repaymentRate: loansTable.repaymentRate,
+    fixedRateEndDate: loansTable.fixedRateEndDate,
+    currentBalanceOverride: loansTable.currentBalanceOverride,
+  }).from(loansTable).where(eq(loansTable.propertyId, propertyId));
+
+  // Monthly payment = loanAmount × (interestRate + repaymentRate) / 1200
+  const loansWithPayment = loans.map((l) => {
+    const amount   = parseFloat(l.loanAmount);
+    const interest = parseFloat(l.interestRate);
+    const repay    = parseFloat(l.repaymentRate);
+    const monthly  = Math.round(amount * (interest + repay) / 1200 * 100) / 100;
+    const balance  = l.currentBalanceOverride ? parseFloat(l.currentBalanceOverride) : amount;
+    return {
+      id: l.id,
+      lenderName: l.lenderName,
+      loanAmount: amount,
+      currentBalance: balance,
+      interestRate: interest,
+      repaymentRate: repay,
+      fixedRateEndDate: l.fixedRateEndDate,
+      monthlyPayment: monthly,
+    };
+  });
+
+  const totalLoanPayments = loansWithPayment.reduce((s, l) => s + l.monthlyPayment, 0);
+  const cashflow = kaltmietenTotal - totalLoanPayments;
+
+  res.json({
+    kaltmietenTotal: Math.round(kaltmietenTotal * 100) / 100,
+    nebenkostenTotal: Math.round(nebenkostenTotal * 100) / 100,
+    totalIncome: Math.round((kaltmietenTotal + nebenkostenTotal) * 100) / 100,
+    totalLoanPayments: Math.round(totalLoanPayments * 100) / 100,
+    cashflow: Math.round(cashflow * 100) / 100,
+    loans: loansWithPayment,
+    contractCount: contracts.length,
+  });
 });
 
 export default router;
