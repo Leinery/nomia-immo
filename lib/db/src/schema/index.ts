@@ -12,3 +12,5 @@ export * from "./rent-debits";
 export * from "./loans";
 export * from "./communications";
 export * from "./maintenance-issues";
+export * from "./conversations";
+export * from "./messages";

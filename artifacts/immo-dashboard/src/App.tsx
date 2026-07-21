@@ -23,6 +23,7 @@ import BankingPage from "@/pages/banking/index";
 import LoansList from "@/pages/loans/index";
 import LoanDetail from "@/pages/loans/detail";
 import SollstellungenPage from "@/pages/sollstellungen/index";
+import KiImportPage from "@/pages/ki-import/index";
 import TenantDetail from "@/pages/tenants/detail";
 import MaintenancePage from "@/pages/maintenance/index";
 
@@ -173,6 +174,7 @@ function ProtectedRouter() {
             <Route path="/sollstellungen" component={SollstellungenPage} />
             <Route path="/tenants/:id" component={TenantDetail} />
             <Route path="/maintenance" component={MaintenancePage} />
+            <Route path="/ki-import" component={KiImportPage} />
             <Route component={NotFound} />
           </Switch>
         </Shell>

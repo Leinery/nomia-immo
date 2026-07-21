@@ -16,6 +16,7 @@ import loansRouter from "./loans";
 import sollstellungenRouter from "./sollstellungen";
 import communicationsRouter from "./communications";
 import maintenanceIssuesRouter from "./maintenance-issues";
+import aiImportRouter from "./ai-import";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(loansRouter);
 router.use(sollstellungenRouter);
 router.use(communicationsRouter);
 router.use(maintenanceIssuesRouter);
+router.use(aiImportRouter);
 
 export default router;
