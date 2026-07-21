@@ -26,6 +26,7 @@ import SollstellungenPage from "@/pages/sollstellungen/index";
 import KiImportPage from "@/pages/ki-import/index";
 import TenantDetail from "@/pages/tenants/detail";
 import MaintenancePage from "@/pages/maintenance/index";
+import UnitDetail from "@/pages/units/detail";
 
 // ─── Clerk config ─────────────────────────────────────────────────────────────
 
@@ -173,6 +174,7 @@ function ProtectedRouter() {
             <Route path="/loans" component={LoansList} />
             <Route path="/sollstellungen" component={SollstellungenPage} />
             <Route path="/tenants/:id" component={TenantDetail} />
+            <Route path="/units/:id" component={UnitDetail} />
             <Route path="/maintenance" component={MaintenancePage} />
             <Route path="/ki-import" component={KiImportPage} />
             <Route component={NotFound} />
