@@ -7,14 +7,15 @@ const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024, files: 5 } });
 
 const SYSTEM_PROMPT = `Du bist ein Experte für deutsche Immobilienverwaltung und Dokumentenanalyse.
-Analysiere das hochgeladene Dokument (Mietvertrag, Objekt-Screenshot, Kontoauszug, etc.) und extrahiere alle relevanten Informationen strukturiert.
+Analysiere das hochgeladene Dokument und extrahiere alle relevanten Informationen strukturiert.
+Berücksichtige dabei ausdrücklich alle Nutzerhinweise, die im User-Message angegeben werden.
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Objekt ohne Markdown-Codeblöcke, in diesem Format:
 
 {
-  "documentType": "mietvertrag" | "objekt" | "zahlung" | "unbekannt",
+  "documentType": "mietvertrag" | "objekt" | "kredit" | "zahlung" | "unbekannt",
   "confidence": 0.0-1.0,
-  "notes": "Kurze Zusammenfassung des Dokuments",
+  "notes": "Kurze Zusammenfassung des Dokuments auf Deutsch",
   "tenant": {
     "firstName": "string oder null",
     "lastName": "string oder null",
@@ -23,7 +24,7 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt ohne Markdown-Codeblöcke, in die
     "dateOfBirth": "YYYY-MM-DD oder null"
   },
   "unit": {
-    "name": "string oder null (z.B. 'WE 1 OG links', 'Stellplatz 3')",
+    "name": "string oder null",
     "propertyAddress": "string oder null",
     "area": Zahl oder null,
     "floor": Zahl oder null,
@@ -48,15 +49,32 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt ohne Markdown-Codeblöcke, in die
     "date": "YYYY-MM-DD oder null",
     "reference": "string oder null",
     "senderName": "string oder null"
+  },
+  "loan": {
+    "lenderName": "Name der Bank/des Kreditgebers oder null",
+    "propertyAddress": "Adresse des finanzierten Objekts oder null",
+    "loanAmount": Ursprungskreditbetrag als Zahl oder null,
+    "currentBalance": Aktueller Reststand als Zahl oder null,
+    "interestRate": Sollzinssatz als Dezimalzahl in Prozent (z.B. 1.45 fuer 1,45%) oder null,
+    "monthlyRate": Monatliche Rate in EUR als Zahl oder null,
+    "startDate": "YYYY-MM-DD oder null (Auszahlungsdatum/Vertragsbeginn)",
+    "fixedRateEndDate": "YYYY-MM-DD oder null (Zinsbindungsende)",
+    "loanIban": "IBAN des Kreditkontos oder null",
+    "debitAccountIban": "IBAN des Belastungskontos oder null",
+    "notes": "string oder null"
   }
 }
 
 Wichtige Hinweise:
+- documentType "kredit" wenn Darlehen, Finanzierung, Hypothek, Kreditdetails erkannt werden
+- documentType "mietvertrag" wenn Mietvertrag erkannt wird
+- documentType "objekt" wenn Objektdetails/Einheitenliste
+- documentType "zahlung" nur wenn reiner Zahlungsbeleg ohne Kreditbezug
 - Datumsformat immer YYYY-MM-DD
-- Geldbeträge als Zahl ohne Währungszeichen (z.B. 850.00 für 850,00 €)
+- Geldbetraege als Zahl ohne Waehrungszeichen (z.B. 850.00 fuer 850,00 EUR)
 - Fehlende Werte als null, nicht als leeren String
-- Bei Mietvertrag: Kaltmiete und Nebenkosten getrennt extrahieren
-- documentType "mietvertrag" wenn Mietvertrag, "objekt" wenn Objektdetails/Einheitenliste, "zahlung" wenn Kontoauszug/Zahlungsbeleg`;
+- Wenn der Nutzer sagt "lege einen Kredit an" o.ae., setze documentType="kredit"`;
+
 
 function fileToContentBlock(file: Express.Multer.File): any {
   const base64 = file.buffer.toString("base64");

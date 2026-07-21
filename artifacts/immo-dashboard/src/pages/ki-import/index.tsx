@@ -8,7 +8,7 @@ import {
 import {
   Upload, FileText, Image, Sparkles, CheckCircle2, AlertCircle,
   X, RotateCcw, Loader2, ChevronRight, Building2, Users, FileSignature,
-  MessageSquare, ThumbsUp, ThumbsDown, FolderDown, RefreshCw,
+  MessageSquare, ThumbsUp, ThumbsDown, FolderDown, RefreshCw, Landmark,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type ExtractionResult = {
-  documentType: "mietvertrag" | "objekt" | "zahlung" | "unbekannt";
+  documentType: "mietvertrag" | "objekt" | "kredit" | "zahlung" | "unbekannt";
   confidence: number;
   notes?: string;
   tenant?: { firstName?: string; lastName?: string; email?: string; phone?: string; dateOfBirth?: string } | null;
@@ -31,12 +31,26 @@ type ExtractionResult = {
   contract?: { startDate?: string; endDate?: string; monthlyRent?: number; nebenkostenvorauszahlung?: number; deposit?: number; notes?: string } | null;
   property?: { name?: string; address?: string; type?: string; owner?: string } | null;
   payment?: { amount?: number; date?: string; reference?: string; senderName?: string } | null;
+  loan?: {
+    lenderName?: string;
+    propertyAddress?: string;
+    loanAmount?: number;
+    currentBalance?: number;
+    interestRate?: number;
+    monthlyRate?: number;
+    startDate?: string;
+    fixedRateEndDate?: string;
+    loanIban?: string;
+    debitAccountIban?: string;
+    notes?: string;
+  } | null;
   _onedriveCatFolder?: string;
 };
 
 const DOC_TYPE_META: Record<string, { label: string; color: string; action: string }> = {
   mietvertrag: { label: "Mietvertrag",    color: "bg-blue-100 text-blue-700",       action: "Mieter und Mietvertrag anlegen" },
   objekt:      { label: "Objekt/Einheit", color: "bg-amber-100 text-amber-700",     action: "Neues Objekt anlegen" },
+  kredit:      { label: "Kredit/Darlehen",color: "bg-purple-100 text-purple-700",   action: "Kredit anlegen" },
   zahlung:     { label: "Zahlung",        color: "bg-emerald-100 text-emerald-700", action: "Als Dokument ablegen" },
   unbekannt:   { label: "Unbekannt",      color: "bg-gray-100 text-gray-600",       action: "Als Dokument ablegen" },
 };
@@ -66,6 +80,7 @@ export default function KiImportPage() {
 
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
   const [selectedUnitId, setSelectedUnitId]         = useState<string>("");
+  const [loanPropertyId, setLoanPropertyId]         = useState<string>("");
 
   const { data: properties = [] } = useListProperties();
   const { data: units = [] } = useListUnits(Number(selectedPropertyId), {
@@ -138,6 +153,52 @@ export default function KiImportPage() {
     } catch (err: any) {
       toast({ title: "Analyse fehlgeschlagen", description: err.message, variant: "destructive" });
       setStep("upload");
+    }
+  }
+
+  // ── Save kredit ──────────────────────────────────────────────────────────────
+  async function saveKredit() {
+    if (!form?.loan) return;
+    const l = form.loan;
+
+    // Compute repaymentRate from monthlyRate if not directly available
+    // annualPayment = monthlyRate * 12; annualInterest = loanAmount * interestRate/100
+    // repaymentRate = (annualPayment - annualInterest) / loanAmount * 100
+    let repaymentRate = 1.0; // sensible default
+    if (l.monthlyRate && l.loanAmount && l.interestRate != null) {
+      const annualInterest = l.loanAmount * (l.interestRate / 100);
+      const annualRepayment = l.monthlyRate * 12 - annualInterest;
+      repaymentRate = Math.max(0.01, (annualRepayment / l.loanAmount) * 100);
+    }
+
+    try {
+      const body: Record<string, any> = {
+        lenderName:            l.lenderName       ?? "Unbekannte Bank",
+        loanAmount:            l.loanAmount        ?? 0,
+        interestRate:          l.interestRate      ?? 0,
+        repaymentRate:         repaymentRate,
+        startDate:             l.startDate         ?? new Date().toISOString().slice(0, 10),
+        fixedRateEndDate:      l.fixedRateEndDate  ?? null,
+        loanIban:              l.loanIban          ?? null,
+        debitAccountIban:      l.debitAccountIban  ?? null,
+        currentBalanceOverride: l.currentBalance   ?? null,
+        notes:                 l.notes             ?? null,
+        propertyId:            loanPropertyId      ? Number(loanPropertyId) : null,
+      };
+
+      const res = await fetch(`${BASE}/api/loans`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      toast({ title: "✓ Kredit angelegt" });
+      setStep("done");
+    } catch (err: any) {
+      toast({ title: "Fehler beim Speichern", description: err.message, variant: "destructive" });
     }
   }
 
@@ -237,7 +298,7 @@ export default function KiImportPage() {
     setStep("upload"); setFiles([]); setFileComments({});
     setResult(null); setForm(null);
     setUserApproved(null); setAltComment(""); setShowFields(false);
-    setSelectedPropertyId(""); setSelectedUnitId("");
+    setSelectedPropertyId(""); setSelectedUnitId(""); setLoanPropertyId("");
     setSaveDocPropertyId(""); setSaveDocCategory("sonstiges");
   }
 
@@ -252,6 +313,12 @@ export default function KiImportPage() {
     }
     if (r.documentType === "objekt") {
       return `Objekt "${r.property?.name || "unbekannt"}" in der Datenbank anlegen`;
+    }
+    if (r.documentType === "kredit") {
+      const bank = r.loan?.lenderName ?? "unbekannte Bank";
+      const amt  = r.loan?.loanAmount ? `${r.loan.loanAmount.toLocaleString("de-DE")} €` : "";
+      const prop = r.loan?.propertyAddress ?? "";
+      return `Kredit bei ${bank}${amt ? ` über ${amt}` : ""}${prop ? ` für ${prop}` : ""} anlegen`;
     }
     if (r.documentType === "zahlung") {
       const amt = r.payment?.amount ? `${r.payment.amount.toLocaleString("de-DE")} €` : "";
@@ -453,7 +520,7 @@ export default function KiImportPage() {
               )}
 
               {/* "Show fields" toggle when approved */}
-              {userApproved === true && (result.documentType === "mietvertrag" || result.documentType === "objekt") && (
+              {userApproved === true && (result.documentType === "mietvertrag" || result.documentType === "objekt" || result.documentType === "kredit") && (
                 <button
                   onClick={() => setShowFields(v => !v)}
                   className="text-xs text-muted-foreground underline underline-offset-2"
@@ -540,6 +607,57 @@ export default function KiImportPage() {
             </SectionCard>
           )}
 
+          {/* ── Kredit fields ────────────────────────────────────────── */}
+          {userApproved === true && showFields && form.documentType === "kredit" && (
+            <SectionCard title="Kredit / Darlehen" icon={<Landmark className="h-4 w-4" />}>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Kreditgeber (Bank)" value={form.loan?.lenderName ?? ""} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, lenderName: v } } : null)} className="col-span-2" />
+                <Field label="Ursprungsbetrag (€)" value={String(form.loan?.loanAmount ?? "")} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, loanAmount: parseFloat(v) || 0 } } : null)} type="number" />
+                <Field label="Reststand (€)" value={String(form.loan?.currentBalance ?? "")} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, currentBalance: parseFloat(v) || 0 } } : null)} type="number" />
+                <Field label="Sollzinssatz (%)" value={String(form.loan?.interestRate ?? "")} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, interestRate: parseFloat(v) || 0 } } : null)} type="number" />
+                <Field label="Monatliche Rate (€)" value={String(form.loan?.monthlyRate ?? "")} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, monthlyRate: parseFloat(v) || 0 } } : null)} type="number" />
+                <Field label="Vertragsbeginn" value={form.loan?.startDate ?? ""} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, startDate: v } } : null)} type="date" />
+                <Field label="Zinsbindung bis" value={form.loan?.fixedRateEndDate ?? ""} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, fixedRateEndDate: v } } : null)} type="date" />
+                <Field label="Kredit-IBAN" value={form.loan?.loanIban ?? ""} onChange={v => setForm(p => p ? { ...p, loan: { ...p.loan, loanIban: v } } : null)} className="col-span-2" />
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="text-xs">Objekt zuordnen</Label>
+                  <Select value={loanPropertyId} onValueChange={setLoanPropertyId}>
+                    <SelectTrigger><SelectValue placeholder="Objekt auswählen (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Kein Objekt</SelectItem>
+                      {(properties as any[]).map((p: any) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {form.loan?.propertyAddress && !loanPropertyId && (
+                    <p className="text-xs text-muted-foreground">Erkannt: {form.loan.propertyAddress}</p>
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Kredit: property selector always visible when approved (not just in showFields) */}
+          {userApproved === true && !showFields && form.documentType === "kredit" && (
+            <Card>
+              <CardContent className="pt-4 pb-4 space-y-2">
+                <p className="text-sm font-medium text-[#0f1c15] flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  Welchem Objekt gehört dieser Kredit?
+                </p>
+                <Select value={loanPropertyId} onValueChange={setLoanPropertyId}>
+                  <SelectTrigger><SelectValue placeholder="Objekt auswählen (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Kein Objekt</SelectItem>
+                    {(properties as any[]).map((p: any) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {form.loan?.propertyAddress && !loanPropertyId && (
+                  <p className="text-xs text-muted-foreground">Erkannt: {form.loan.propertyAddress}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* ── Save-as-document (zahlung / unbekannt) ───────────────── */}
           {userApproved === true && (form.documentType === "zahlung" || form.documentType === "unbekannt") && (
             <Card>
@@ -584,16 +702,20 @@ export default function KiImportPage() {
           {userApproved === true && (
             <Button
               onClick={
-                (form.documentType === "zahlung" || form.documentType === "unbekannt")
-                  ? saveAsDocument
-                  : save
+                form.documentType === "kredit"   ? saveKredit :
+                form.documentType === "zahlung"  ? saveAsDocument :
+                form.documentType === "unbekannt"? saveAsDocument :
+                save
               }
               disabled={isSaving}
               className="w-full bg-[#1C3829] hover:bg-[#2a5240] text-white h-11"
             >
               {isSaving
                 ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Wird gespeichert…</>
-                : <><CheckCircle2 className="h-4 w-4 mr-2" />Umsetzen</>}
+                : form.documentType === "kredit"
+                  ? <><Landmark className="h-4 w-4 mr-2" />Kredit anlegen</>
+                  : <><CheckCircle2 className="h-4 w-4 mr-2" />Umsetzen</>
+              }
             </Button>
           )}
         </div>
