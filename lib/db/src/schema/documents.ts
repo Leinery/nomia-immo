@@ -12,6 +12,7 @@ export const documentsTable = pgTable("documents", {
   propertyId: integer("property_id"),
   unitId: integer("unit_id"),
   contractId: integer("contract_id"),
+  onedrivePath: text("onedrive_path"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

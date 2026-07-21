@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListDocuments,
   useDeleteDocument,
@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   FileSpreadsheet, Plus, Trash2, Download, FileText,
   Image as ImageIcon, FileArchive, Building2, UploadCloud, Loader2,
+  Cloud, CloudOff, ExternalLink, FolderOpen,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,6 +98,8 @@ async function uploadToObjectStorage(
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+type OneDriveStatus = { connected: boolean; displayName?: string; email?: string; driveUrl?: string; error?: string };
+
 export default function DocumentsList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -109,6 +112,28 @@ export default function DocumentsList() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [onedrive, setOnedrive] = useState<OneDriveStatus | null>(null);
+  const [isSettingUpFolders, setIsSettingUpFolders] = useState(false);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/onedrive/status`)
+      .then(r => r.json())
+      .then(setOnedrive)
+      .catch(() => setOnedrive({ connected: false }));
+  }, []);
+
+  const setupFolders = async () => {
+    setIsSettingUpFolders(true);
+    try {
+      const res = await fetch(`${BASE}/api/onedrive/setup-folders`, { method: "POST" });
+      const data = await res.json();
+      toast({ title: "✓ Ordnerstruktur angelegt", description: `${data.folders?.length ?? 0} Ordner in OneDrive erstellt.` });
+    } catch {
+      toast({ title: "Fehler", description: "Ordner konnten nicht angelegt werden.", variant: "destructive" });
+    } finally {
+      setIsSettingUpFolders(false);
+    }
+  };
 
   const form = useForm<UploadFormValues>({
     resolver: zodResolver(uploadSchema),
@@ -182,13 +207,63 @@ export default function DocumentsList() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dokumente</h1>
           <p className="text-muted-foreground mt-1">
-            Mietverträge, Rechnungen und Belege — sicher in der Cloud gespeichert.
+            Mietverträge, Rechnungen und Belege — gespeichert in App-Speicher und OneDrive.
           </p>
         </div>
         <Button onClick={openDialog} className="gap-2">
           <Plus className="w-4 h-4" /> Dokument hochladen
         </Button>
       </div>
+
+      {/* OneDrive status banner */}
+      {onedrive !== null && (
+        <div className={`rounded-xl border px-4 py-3 flex items-center justify-between gap-4 flex-wrap ${
+          onedrive.connected ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
+        }`}>
+          <div className="flex items-center gap-3">
+            {onedrive.connected
+              ? <Cloud className="h-5 w-5 text-blue-600 shrink-0" />
+              : <CloudOff className="h-5 w-5 text-amber-500 shrink-0" />}
+            <div>
+              {onedrive.connected ? (
+                <>
+                  <p className="text-sm font-medium text-blue-900">
+                    OneDrive verbunden · {onedrive.displayName}
+                  </p>
+                  <p className="text-xs text-blue-700 mt-0.5">
+                    Hochgeladene Dokumente werden automatisch nach{" "}
+                    <span className="font-mono">Nomia Immobilien/…</span> synchronisiert.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm font-medium text-amber-900">OneDrive nicht verbunden</p>
+              )}
+            </div>
+          </div>
+          {onedrive.connected && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm" variant="outline"
+                className="border-blue-300 bg-white text-blue-700 hover:bg-blue-50 h-8"
+                onClick={setupFolders}
+                disabled={isSettingUpFolders}
+              >
+                {isSettingUpFolders
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  : <FolderOpen className="h-3.5 w-3.5 mr-1.5" />}
+                Ordnerstruktur anlegen
+              </Button>
+              {onedrive.driveUrl && (
+                <Button size="sm" variant="ghost" className="text-blue-700 h-8" asChild>
+                  <a href={onedrive.driveUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> OneDrive öffnen
+                  </a>
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       <Card className="shadow-sm">
@@ -250,6 +325,13 @@ export default function DocumentsList() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {(doc as any).onedrivePath && (
+                          <Button variant="ghost" size="icon" asChild title="In OneDrive öffnen">
+                            <a href={(doc as any).onedrivePath} target="_blank" rel="noopener noreferrer">
+                              <Cloud className="w-4 h-4 text-blue-500" />
+                            </a>
+                          </Button>
+                        )}
                         {doc.fileUrl && (
                           <Button variant="ghost" size="icon" asChild>
                             <a href={`${BASE}${doc.fileUrl}`} target="_blank" rel="noopener noreferrer" title="Öffnen">

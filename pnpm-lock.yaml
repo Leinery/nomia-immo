@@ -94,6 +94,9 @@ importers:
       '@google-cloud/storage':
         specifier: ^7.21.0
         version: 7.21.0
+      '@replit/connectors-sdk':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@types/multer':
         specifier: ^2.2.0
         version: 2.2.0

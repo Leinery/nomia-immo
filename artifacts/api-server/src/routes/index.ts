@@ -17,6 +17,7 @@ import sollstellungenRouter from "./sollstellungen";
 import communicationsRouter from "./communications";
 import maintenanceIssuesRouter from "./maintenance-issues";
 import aiImportRouter from "./ai-import";
+import onedriveRouter from "./onedrive";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(sollstellungenRouter);
 router.use(communicationsRouter);
 router.use(maintenanceIssuesRouter);
 router.use(aiImportRouter);
+router.use(onedriveRouter);
 
 export default router;

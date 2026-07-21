@@ -9,6 +9,7 @@ import {
   GetDocumentResponse,
   DeleteDocumentParams,
 } from "@workspace/api-zod";
+import { uploadToOneDrive, buildOneDrivePath, getPropertyFolderName, categoryToFolder } from "../lib/onedrive";
 
 const router: IRouter = Router();
 
@@ -92,6 +93,23 @@ router.post("/documents/upload", requireAuth, async (req, res): Promise<void> =>
     .returning();
 
   res.status(201).json(row);
+
+  // ── Async OneDrive push (non-blocking) ─────────────────────────────────────
+  (async () => {
+    try {
+      const fileRes = await fetch(`http://localhost:${process.env.PORT ?? 8080}${fileUrl}`);
+      if (!fileRes.ok) return;
+      const buffer = Buffer.from(await fileRes.arrayBuffer());
+      const propFolder = await getPropertyFolderName(propertyId);
+      const catFolder  = categoryToFolder(category);
+      const filename   = (name || "Dokument") + (mimeType === "application/pdf" ? ".pdf" : "");
+      const remotePath = buildOneDrivePath(propFolder, catFolder, filename);
+      const result     = await uploadToOneDrive(remotePath, buffer, mimeType ?? "application/octet-stream");
+      await db.update(documentsTable).set({ onedrivePath: result.webUrl }).where(eq(documentsTable.id, row.id));
+    } catch (err) {
+      console.error("[OneDrive] Upload fehlgeschlagen:", err);
+    }
+  })();
 });
 
 // ─── Get one ─────────────────────────────────────────────────────────────────
