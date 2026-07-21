@@ -2673,6 +2673,50 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 export type GetIncomeByMonthQueryResult = NonNullable<Awaited<ReturnType<typeof getIncomeByMonth>>>
 export type GetIncomeByMonthQueryError = ErrorType<unknown>
 
+// ─── Property Rent Overview ───────────────────────────────────────────────────
+
+export type UnitRentOverviewItem = {
+  unitId: number; unitName: string; unitType: string;
+  area: number | null; unitStatus: string;
+  contractId: number | null; tenantId: number | null; tenantName: string | null;
+  currentMonth: {
+    soll: number; gezahlt: number;
+    status: 'bezahlt' | 'teilweise' | 'offen' | 'kein_debit' | 'leerstand' | 'kein_vertrag';
+  };
+};
+
+export type PropertyWithSummary = PropertyType & {
+  unitsByType: { residential: number; garage: number; parking: number };
+  totalArea: number;
+  monthlyRent: number;
+};
+
+export const getGetPropertyRentOverviewQueryKey = (propertyId: number) =>
+  [`/api/properties/${propertyId}/rent-overview`] as const;
+
+export const getPropertyRentOverview = async (propertyId: number, options?: RequestInit): Promise<UnitRentOverviewItem[]> =>
+  customFetch<UnitRentOverviewItem[]>(`/api/properties/${propertyId}/rent-overview`, { ...options, method: 'GET' });
+
+export const getGetPropertyRentOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getPropertyRentOverview>>, TError = ErrorType<unknown>>(
+  propertyId: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getPropertyRentOverview>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetPropertyRentOverviewQueryKey(propertyId);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPropertyRentOverview>>> = ({ signal }) =>
+    getPropertyRentOverview(propertyId, { signal, ...requestOptions });
+  return { queryKey, queryFn, enabled: !!propertyId, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getPropertyRentOverview>>, TError, TData> & { queryKey: QueryKey };
+};
+
+export function useGetPropertyRentOverview<TData = Awaited<ReturnType<typeof getPropertyRentOverview>>, TError = ErrorType<unknown>>(
+  propertyId: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getPropertyRentOverview>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPropertyRentOverviewQueryOptions(propertyId, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 // ─── Loans (Kredite) ──────────────────────────────────────────────────────────
 
 export type LoanItem = {
