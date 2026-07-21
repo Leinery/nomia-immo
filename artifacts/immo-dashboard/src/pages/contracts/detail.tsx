@@ -220,7 +220,9 @@ export default function ContractDetail() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-foreground">
-              {tenant?.name ?? "Unbekannter Mieter"}
+              {tenant
+                ? ((tenant as any).companyName || [tenant.firstName, tenant.lastName].filter(Boolean).join(" ") || "Unbekannter Mieter")
+                : "Unbekannter Mieter"}
             </h1>
             <StatusBadge status={contract.status} />
           </div>
@@ -352,7 +354,7 @@ export default function ContractDetail() {
                 { label: "Ende", value: contract.endDate ? formatDate(contract.endDate) : "Unbefristet" },
                 { label: "Kaution", value: contract.deposit ? formatCurrency(contract.deposit) : "—" },
                 { label: "Einheit", value: unit?.name ?? `ID ${contract.unitId}` },
-                { label: "Mieter", value: tenant?.name ?? `ID ${contract.tenantId}` },
+                { label: "Mieter", value: tenant ? ((tenant as any).companyName || [tenant.firstName, tenant.lastName].filter(Boolean).join(" ") || `ID ${contract.tenantId}`) : `ID ${contract.tenantId}` },
                 { label: "Notizen", value: contract.notes ?? "—" },
               ].map((row) => (
                 <div key={row.label}>

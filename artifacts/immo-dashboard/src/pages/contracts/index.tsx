@@ -203,10 +203,19 @@ export default function ContractsList() {
                       className="group cursor-pointer hover:bg-muted/30"
                       onClick={() => navigate(`${BASE}/contracts/${c.id}`)}
                     >
-                      <TableCell className="font-medium">{tenant?.name ?? `Mieter ${c.tenantId}`}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                        <div>{unit?.name ?? `Einheit ${c.unitId}`}</div>
-                        {prop && <div className="text-xs opacity-70">{prop.name}</div>}
+                      <TableCell className="font-medium">
+                        <div className="text-sm font-semibold leading-snug">
+                          {tenant
+                            ? ((tenant as any).companyName || [tenant.firstName, tenant.lastName].filter(Boolean).join(" ") || `Mieter ${c.tenantId}`)
+                            : `Mieter ${c.tenantId}`}
+                        </div>
+                        {(tenant as any)?.companyName && (tenant.firstName || tenant.lastName) && (
+                          <div className="text-xs text-muted-foreground">{[tenant.firstName, tenant.lastName].filter(Boolean).join(" ")}</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm">
+                        <div className="font-medium text-foreground">{unit?.name ?? `Einheit ${c.unitId}`}</div>
+                        {prop && <div className="text-xs text-muted-foreground mt-0.5">{prop.name}</div>}
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-muted-foreground whitespace-nowrap">
                         {formatDate(c.startDate)}
@@ -259,7 +268,11 @@ export default function ContractsList() {
                     <Select value={field.value ? String(field.value) : ""} onValueChange={(v) => field.onChange(parseInt(v))}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Mieter wählen…" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {(tenants ?? []).map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                        {(tenants ?? []).map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {(t as any).companyName || [t.firstName, t.lastName].filter(Boolean).join(" ") || `Mieter ${t.id}`}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
