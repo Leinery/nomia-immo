@@ -24,7 +24,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -35,6 +34,7 @@ const tenantSchema = z.object({
   lastName:      z.string().min(1, "Pflichtfeld"),
   contactPerson: z.string().optional().nullable(),
   street:        z.string().optional().nullable(),
+  houseNumber:   z.string().optional().nullable(),
   zipCode:       z.string().optional().nullable(),
   city:          z.string().optional().nullable(),
   email:         z.string().email("Ungültige E-Mail").optional().or(z.literal("")).nullable(),
@@ -50,17 +50,12 @@ type TenantFormValues = z.infer<typeof tenantSchema>;
 
 const EMPTY: TenantFormValues = {
   companyName: "", firstName: "", lastName: "", contactPerson: "",
-  street: "", zipCode: "", city: "",
+  street: "", houseNumber: "", zipCode: "", city: "",
   email: "", phone: "", mobile: "",
   dateOfBirth: "", taxId: "", iban: "", notes: "",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function displayName(t: any): string {
-  if (t.companyName) return t.companyName;
-  return [t.firstName, t.lastName].filter(Boolean).join(" ");
-}
 
 function nullify(v: string | null | undefined) {
   return v?.trim() || undefined;
@@ -104,6 +99,7 @@ export default function TenantsList() {
       lastName:      data.lastName,
       contactPerson: nullify(data.contactPerson),
       street:        nullify(data.street),
+      houseNumber:   nullify(data.houseNumber),
       zipCode:       nullify(data.zipCode),
       city:          nullify(data.city),
       email:         nullify(data.email),
@@ -131,20 +127,21 @@ export default function TenantsList() {
   const handleEdit = (t: any) => {
     setEditingId(t.id);
     form.reset({
-      companyName:   t.companyName  ?? "",
-      firstName:     t.firstName    ?? "",
-      lastName:      t.lastName     ?? "",
+      companyName:   t.companyName   ?? "",
+      firstName:     t.firstName     ?? "",
+      lastName:      t.lastName      ?? "",
       contactPerson: t.contactPerson ?? "",
-      street:        t.street       ?? "",
-      zipCode:       t.zipCode      ?? "",
-      city:          t.city         ?? "",
-      email:         t.email        ?? "",
-      phone:         t.phone        ?? "",
-      mobile:        t.mobile       ?? "",
-      dateOfBirth:   t.dateOfBirth  ? new Date(t.dateOfBirth).toISOString().split("T")[0] : "",
-      taxId:         t.taxId        ?? "",
-      iban:          t.iban         ?? "",
-      notes:         t.notes        ?? "",
+      street:        t.street        ?? "",
+      houseNumber:   t.houseNumber   ?? "",
+      zipCode:       t.zipCode       ?? "",
+      city:          t.city          ?? "",
+      email:         t.email         ?? "",
+      phone:         t.phone         ?? "",
+      mobile:        t.mobile        ?? "",
+      dateOfBirth:   t.dateOfBirth   ? new Date(t.dateOfBirth).toISOString().split("T")[0] : "",
+      taxId:         t.taxId         ?? "",
+      iban:          t.iban          ?? "",
+      notes:         t.notes         ?? "",
     });
     setIsDialogOpen(true);
   };
@@ -185,20 +182,21 @@ export default function TenantsList() {
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead>Name / Firma</TableHead>
-                <TableHead className="hidden md:table-cell">Ansprechpartner</TableHead>
-                <TableHead className="hidden lg:table-cell">Adresse</TableHead>
-                <TableHead>Kontakt</TableHead>
+                <TableHead className="hidden md:table-cell">Straße + Nr.</TableHead>
+                <TableHead className="hidden lg:table-cell">PLZ / Ort</TableHead>
+                <TableHead className="hidden md:table-cell">E-Mail</TableHead>
+                <TableHead>Telefon</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Lade Daten…</TableCell>
+                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Lade Daten…</TableCell>
                 </TableRow>
               ) : tenants?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-14 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-14 text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto text-muted mb-3 opacity-30" />
                     <p>Noch keine Mieter angelegt.</p>
                   </TableCell>
@@ -210,14 +208,14 @@ export default function TenantsList() {
                     className="group cursor-pointer hover:bg-[#f4f7f5]/60"
                     onClick={() => navigate(`/tenants/${tenant.id}`)}
                   >
-                    {/* Name */}
+                    {/* Name / Firma */}
                     <TableCell>
                       <div className="flex flex-col">
-                        {tenant.companyName ? (
+                        {(tenant as any).companyName ? (
                           <>
                             <span className="font-semibold text-sm flex items-center gap-1.5">
                               <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                              {tenant.companyName}
+                              {(tenant as any).companyName}
                             </span>
                             <span className="text-xs text-muted-foreground mt-0.5">
                               {[tenant.firstName, tenant.lastName].filter(Boolean).join(" ")}
@@ -232,53 +230,60 @@ export default function TenantsList() {
                       </div>
                     </TableCell>
 
-                    {/* Ansprechpartner */}
+                    {/* Straße + Nr. */}
                     <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                      {tenant.contactPerson || "—"}
-                    </TableCell>
-
-                    {/* Adresse */}
-                    <TableCell className="hidden lg:table-cell">
-                      {tenant.street || tenant.city ? (
-                        <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
-                          <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      {(tenant as any).street || (tenant as any).houseNumber ? (
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 shrink-0" />
                           <span>
-                            {tenant.street && <span>{tenant.street}<br /></span>}
-                            {[tenant.zipCode, tenant.city].filter(Boolean).join(" ")}
+                            {[(tenant as any).street, (tenant as any).houseNumber].filter(Boolean).join(" ")}
                           </span>
                         </div>
                       ) : "—"}
                     </TableCell>
 
-                    {/* Kontakt */}
-                    <TableCell>
-                      <div className="space-y-0.5 text-sm text-muted-foreground">
-                        {tenant.email && (
-                          <div className="flex items-center gap-1.5">
-                            <Mail className="w-3.5 h-3.5 shrink-0" />
-                            <a
-                              href={`mailto:${tenant.email}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="hover:text-primary transition-colors truncate max-w-[160px]"
-                            >
-                              {tenant.email}
-                            </a>
-                          </div>
-                        )}
-                        {tenant.phone && (
-                          <div className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 shrink-0" />
-                            <a href={`tel:${tenant.phone}`} onClick={(e) => e.stopPropagation()}>{tenant.phone}</a>
-                          </div>
-                        )}
-                        {tenant.mobile && !tenant.phone && (
-                          <div className="flex items-center gap-1.5">
-                            <Smartphone className="w-3.5 h-3.5 shrink-0" />
-                            <a href={`tel:${tenant.mobile}`} onClick={(e) => e.stopPropagation()}>{tenant.mobile}</a>
-                          </div>
-                        )}
-                        {!tenant.email && !tenant.phone && !tenant.mobile && "—"}
-                      </div>
+                    {/* PLZ / Ort */}
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                      {(tenant as any).zipCode || (tenant as any).city
+                        ? [(tenant as any).zipCode, (tenant as any).city].filter(Boolean).join(" ")
+                        : "—"}
+                    </TableCell>
+
+                    {/* E-Mail */}
+                    <TableCell className="hidden md:table-cell text-sm">
+                      {tenant.email ? (
+                        <a
+                          href={`mailto:${tenant.email}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate max-w-[180px]">{tenant.email}</span>
+                        </a>
+                      ) : "—"}
+                    </TableCell>
+
+                    {/* Telefon */}
+                    <TableCell className="text-sm">
+                      {tenant.phone ? (
+                        <a
+                          href={`tel:${tenant.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <Phone className="w-3.5 h-3.5 shrink-0" />
+                          {tenant.phone}
+                        </a>
+                      ) : (tenant as any).mobile ? (
+                        <a
+                          href={`tel:${(tenant as any).mobile}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                          {(tenant as any).mobile}
+                        </a>
+                      ) : "—"}
                     </TableCell>
 
                     {/* Aktionen */}
@@ -356,15 +361,28 @@ export default function TenantsList() {
                 {/* ── Adresse ───────────────────────────────────────────── */}
                 <Section title="Adresse" />
 
-                <FormField control={form.control} name="street" render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Straße + Hausnummer</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Musterstraße 12" {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                {/* Straße + Hausnummer in 3:1-Aufteilung */}
+                <div className="col-span-2 grid grid-cols-[3fr_1fr] gap-3">
+                  <FormField control={form.control} name="street" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Straße</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Musterstraße" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="houseNumber" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hausnr.</FormLabel>
+                      <FormControl>
+                        <Input placeholder="12a" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
 
                 <FormField control={form.control} name="zipCode" render={({ field }) => (
                   <FormItem>

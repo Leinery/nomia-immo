@@ -168,6 +168,8 @@ export interface Tenant {
   /** @nullable */
   street?: string | null;
   /** @nullable */
+  houseNumber?: string | null;
+  /** @nullable */
   zipCode?: string | null;
   /** @nullable */
   city?: string | null;
@@ -196,6 +198,7 @@ export interface TenantInput {
   lastName: string;
   contactPerson?: string;
   street?: string;
+  houseNumber?: string;
   zipCode?: string;
   city?: string;
   email?: string;
@@ -213,6 +216,7 @@ export interface TenantUpdate {
   lastName?: string;
   contactPerson?: string;
   street?: string;
+  houseNumber?: string;
   zipCode?: string;
   city?: string;
   email?: string;

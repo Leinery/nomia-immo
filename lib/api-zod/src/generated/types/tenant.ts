@@ -8,14 +8,32 @@
 
 export interface Tenant {
   id: number;
+  /** @nullable */
+  companyName?: string | null;
   firstName: string;
   lastName: string;
+  /** @nullable */
+  contactPerson?: string | null;
+  /** @nullable */
+  street?: string | null;
+  /** @nullable */
+  houseNumber?: string | null;
+  /** @nullable */
+  zipCode?: string | null;
+  /** @nullable */
+  city?: string | null;
   /** @nullable */
   email?: string | null;
   /** @nullable */
   phone?: string | null;
   /** @nullable */
+  mobile?: string | null;
+  /** @nullable */
   dateOfBirth?: Date | null;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  iban?: string | null;
   /** @nullable */
   notes?: string | null;
   createdAt: Date;

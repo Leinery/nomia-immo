@@ -7,10 +7,19 @@
  */
 
 export interface TenantUpdate {
+  companyName?: string;
   firstName?: string;
   lastName?: string;
+  contactPerson?: string;
+  street?: string;
+  houseNumber?: string;
+  zipCode?: string;
+  city?: string;
   email?: string;
   phone?: string;
+  mobile?: string;
   dateOfBirth?: string;
+  taxId?: string;
+  iban?: string;
   notes?: string;
 }

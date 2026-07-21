@@ -7,12 +7,21 @@
  */
 
 export interface TenantInput {
+  companyName?: string;
   /** @minLength 1 */
   firstName: string;
   /** @minLength 1 */
   lastName: string;
+  contactPerson?: string;
+  street?: string;
+  houseNumber?: string;
+  zipCode?: string;
+  city?: string;
   email?: string;
   phone?: string;
+  mobile?: string;
   dateOfBirth?: Date;
+  taxId?: string;
+  iban?: string;
   notes?: string;
 }

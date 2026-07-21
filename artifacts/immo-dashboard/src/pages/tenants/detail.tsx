@@ -171,11 +171,12 @@ export default function TenantDetailPage() {
                     <Smartphone className="h-3.5 w-3.5 shrink-0" />{(tenant as any).mobile}
                   </a>
                 )}
-                {((tenant as any).street || (tenant as any).city) && (
+                {((tenant as any).street || (tenant as any).houseNumber || (tenant as any).city) && (
                   <span className="flex items-start gap-1.5">
                     <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <span>
-                      {(tenant as any).street}{(tenant as any).street && <br />}
+                      {[(tenant as any).street, (tenant as any).houseNumber].filter(Boolean).join(" ")}
+                      {((tenant as any).street || (tenant as any).houseNumber) && <br />}
                       {[(tenant as any).zipCode, (tenant as any).city].filter(Boolean).join(" ")}
                     </span>
                   </span>

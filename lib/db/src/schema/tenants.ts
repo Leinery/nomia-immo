@@ -10,7 +10,8 @@ export const tenantsTable = pgTable("tenants", {
   lastName:      text("last_name").notNull(),    // Nachname / Inhaber
   contactPerson: text("contact_person"),         // Ansprechpartner (abweichend)
   // ── Adresse ───────────────────────────────────────────────────────────────
-  street:        text("street"),                 // Straße + Hausnummer
+  street:        text("street"),                 // Straßenname
+  houseNumber:   text("house_number"),           // Hausnummer
   zipCode:       text("zip_code"),               // PLZ
   city:          text("city"),                   // Ort
   // ── Kontakt ───────────────────────────────────────────────────────────────
