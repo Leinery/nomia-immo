@@ -36,6 +36,7 @@ const MONTHS_DE = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep
 const contractSchema = z.object({
   monthlyRent: z.coerce.number().min(0),
   nebenkostenvorauszahlung: z.coerce.number().min(0),
+  heizkostenvorauszahlung: z.coerce.number().min(0),
   deposit: z.coerce.number().min(0).optional().nullable(),
   startDate: z.string().min(1),
   endDate: z.string().optional().nullable(),
@@ -113,6 +114,7 @@ export default function ContractDetail() {
       ? {
           monthlyRent: contract.monthlyRent,
           nebenkostenvorauszahlung: contract.nebenkostenvorauszahlung ?? 0,
+          heizkostenvorauszahlung: contract.heizkostenvorauszahlung ?? 0,
           deposit: contract.deposit ?? null,
           startDate: contract.startDate instanceof Date
             ? contract.startDate.toISOString().split("T")[0]
@@ -206,7 +208,7 @@ export default function ContractDetail() {
     return <div className="text-center py-20 text-muted-foreground">Vertrag nicht gefunden.</div>;
   }
 
-  const gesamt = contract.monthlyRent + (contract.nebenkostenvorauszahlung ?? 0);
+  const gesamt = contract.monthlyRent + (contract.nebenkostenvorauszahlung ?? 0) + (contract.heizkostenvorauszahlung ?? 0);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -242,7 +244,8 @@ export default function ContractDetail() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Kaltmiete", value: formatCurrency(contract.monthlyRent), icon: Euro },
-          { label: "Nebenkosten", value: formatCurrency(contract.nebenkostenvorauszahlung ?? 0), icon: Euro },
+          { label: "Nebenkosten VZ", value: formatCurrency(contract.nebenkostenvorauszahlung ?? 0), icon: Euro },
+          { label: "Heizkosten VZ", value: formatCurrency(contract.heizkostenvorauszahlung ?? 0), icon: Euro },
           { label: "Gesamt/Monat", value: formatCurrency(gesamt), icon: Euro, highlight: true },
           {
             label: totalBalance >= 0 ? "Guthaben" : "Rückstand",
@@ -279,7 +282,14 @@ export default function ContractDetail() {
                   )} />
                   <FormField control={contractForm.control} name="nebenkostenvorauszahlung" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>NKV (€)</FormLabel>
+                      <FormLabel>Nebenkosten VZ (€)</FormLabel>
+                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={contractForm.control} name="heizkostenvorauszahlung" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Heizkosten VZ (€)</FormLabel>
                       <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>

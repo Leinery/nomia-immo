@@ -245,6 +245,8 @@ export interface Contract {
   /** @nullable */
   endDate?: string | null;
   monthlyRent: number;
+  nebenkostenvorauszahlung: number;
+  heizkostenvorauszahlung: number;
   /** @nullable */
   deposit?: number | null;
   status: ContractStatus;
@@ -268,6 +270,8 @@ export interface ContractInput {
   startDate: string;
   endDate?: string;
   monthlyRent: number;
+  nebenkostenvorauszahlung?: number;
+  heizkostenvorauszahlung?: number;
   deposit?: number;
   status?: ContractInputStatus;
   notes?: string;
@@ -286,6 +290,8 @@ export interface ContractUpdate {
   startDate?: string;
   endDate?: string;
   monthlyRent?: number;
+  nebenkostenvorauszahlung?: number;
+  heizkostenvorauszahlung?: number;
   deposit?: number;
   status?: ContractUpdateStatus;
   notes?: string;

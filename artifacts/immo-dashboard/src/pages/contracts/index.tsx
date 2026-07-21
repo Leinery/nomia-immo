@@ -31,6 +31,7 @@ const contractSchema = z.object({
   tenantId: z.coerce.number().min(1, "Mieter erforderlich"),
   monthlyRent: z.coerce.number().min(0),
   nebenkostenvorauszahlung: z.coerce.number().min(0).default(0),
+  heizkostenvorauszahlung: z.coerce.number().min(0).default(0),
   deposit: z.coerce.number().min(0).optional().nullable(),
   startDate: z.string().min(1, "Startdatum erforderlich"),
   endDate: z.string().optional().nullable(),
@@ -68,12 +69,13 @@ export default function ContractsList() {
     defaultValues: {
       status: "active",
       nebenkostenvorauszahlung: 0,
+      heizkostenvorauszahlung: 0,
       deposit: null,
     },
   });
 
   const openCreate = () => {
-    form.reset({ status: "active", nebenkostenvorauszahlung: 0, deposit: null });
+    form.reset({ status: "active", nebenkostenvorauszahlung: 0, heizkostenvorauszahlung: 0, deposit: null });
     setEditingId(null);
     setIsDialogOpen(true);
   };
@@ -84,6 +86,7 @@ export default function ContractsList() {
       tenantId: c.tenantId,
       monthlyRent: c.monthlyRent,
       nebenkostenvorauszahlung: c.nebenkostenvorauszahlung ?? 0,
+      heizkostenvorauszahlung: c.heizkostenvorauszahlung ?? 0,
       deposit: c.deposit ?? null,
       startDate: c.startDate instanceof Date
         ? c.startDate.toISOString().split("T")[0]
@@ -193,7 +196,7 @@ export default function ContractsList() {
                   const unit   = unitMap[c.unitId];
                   const tenant = tenantMap[c.tenantId];
                   const prop   = unit ? propMap[unit.propertyId] : undefined;
-                  const gesamt = c.monthlyRent + (c.nebenkostenvorauszahlung ?? 0);
+                  const gesamt = c.monthlyRent + (c.nebenkostenvorauszahlung ?? 0) + (c.heizkostenvorauszahlung ?? 0);
                   return (
                     <TableRow
                       key={c.id}
@@ -292,7 +295,16 @@ export default function ContractsList() {
                 {/* NKV */}
                 <FormField control={form.control} name="nebenkostenvorauszahlung" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nebenkostenvorauszahlung (€)</FormLabel>
+                    <FormLabel>Nebenkosten VZ (€)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value ?? ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* HKV */}
+                <FormField control={form.control} name="heizkostenvorauszahlung" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Heizkosten VZ (€)</FormLabel>
                     <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>

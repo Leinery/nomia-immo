@@ -21,6 +21,7 @@ function serializeContract(c: typeof contractsTable.$inferSelect) {
     ...c,
     monthlyRent: parseFloat(c.monthlyRent),
     nebenkostenvorauszahlung: parseFloat(c.nebenkostenvorauszahlung ?? "0"),
+    heizkostenvorauszahlung: parseFloat(c.heizkostenvorauszahlung ?? "0"),
     deposit: c.deposit != null ? parseFloat(c.deposit) : null,
   };
 }
@@ -58,6 +59,7 @@ router.post("/contracts", async (req, res): Promise<void> => {
     endDate:   parsed.data.endDate ? toDateStr(parsed.data.endDate) : undefined,
     monthlyRent: String(parsed.data.monthlyRent),
     nebenkostenvorauszahlung: String(parsed.data.nebenkostenvorauszahlung ?? 0),
+    heizkostenvorauszahlung: String(parsed.data.heizkostenvorauszahlung ?? 0),
     deposit: parsed.data.deposit != null ? String(parsed.data.deposit) : undefined,
   }).returning();
   res.status(201).json(CreateContractResponse.parse(serializeContract(row)));
@@ -92,6 +94,9 @@ router.patch("/contracts/:id", async (req, res): Promise<void> => {
     monthlyRent: parsed.data.monthlyRent != null ? String(parsed.data.monthlyRent) : undefined,
     nebenkostenvorauszahlung: parsed.data.nebenkostenvorauszahlung != null
       ? String(parsed.data.nebenkostenvorauszahlung)
+      : undefined,
+    heizkostenvorauszahlung: parsed.data.heizkostenvorauszahlung != null
+      ? String(parsed.data.heizkostenvorauszahlung)
       : undefined,
     deposit: parsed.data.deposit != null ? String(parsed.data.deposit) : undefined,
   }).where(eq(contractsTable.id, params.data.id)).returning();

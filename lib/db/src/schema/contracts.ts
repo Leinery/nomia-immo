@@ -12,6 +12,7 @@ export const contractsTable = pgTable("contracts", {
   endDate: text("end_date"),
   monthlyRent: numeric("monthly_rent", { precision: 10, scale: 2 }).notNull(),
   nebenkostenvorauszahlung: numeric("nebenkostenvorauszahlung", { precision: 10, scale: 2 }).notNull().default("0"),
+  heizkostenvorauszahlung: numeric("heizkostenvorauszahlung", { precision: 10, scale: 2 }).notNull().default("0"),
   deposit: numeric("deposit", { precision: 10, scale: 2 }),
   status: text("status").notNull().default("active"),
   notes: text("notes"),
