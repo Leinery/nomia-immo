@@ -1,44 +1,90 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { 
-  useListTenants, 
-  useCreateTenant, 
-  useUpdateTenant, 
+import {
+  useListTenants,
+  useCreateTenant,
+  useUpdateTenant,
   useDeleteTenant,
-  getListTenantsQueryKey
+  getListTenantsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Users, Plus, Edit, Trash2, Mail, Phone, Calendar } from "lucide-react";
+import {
+  Users, Plus, Edit, Trash2, Mail, Phone, MapPin,
+  Building2, User, Smartphone, CreditCard, Hash,
+} from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate } from "@/lib/utils";
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
 
 const tenantSchema = z.object({
-  firstName: z.string().min(1, "Vorname ist erforderlich"),
-  lastName: z.string().min(1, "Nachname ist erforderlich"),
-  email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
-  phone: z.string().optional().nullable(),
-  dateOfBirth: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  companyName:   z.string().optional().nullable(),
+  firstName:     z.string().min(1, "Pflichtfeld"),
+  lastName:      z.string().min(1, "Pflichtfeld"),
+  contactPerson: z.string().optional().nullable(),
+  street:        z.string().optional().nullable(),
+  zipCode:       z.string().optional().nullable(),
+  city:          z.string().optional().nullable(),
+  email:         z.string().email("Ungültige E-Mail").optional().or(z.literal("")).nullable(),
+  phone:         z.string().optional().nullable(),
+  mobile:        z.string().optional().nullable(),
+  dateOfBirth:   z.string().optional().nullable(),
+  taxId:         z.string().optional().nullable(),
+  iban:          z.string().optional().nullable(),
+  notes:         z.string().optional().nullable(),
 });
 
 type TenantFormValues = z.infer<typeof tenantSchema>;
+
+const EMPTY: TenantFormValues = {
+  companyName: "", firstName: "", lastName: "", contactPerson: "",
+  street: "", zipCode: "", city: "",
+  email: "", phone: "", mobile: "",
+  dateOfBirth: "", taxId: "", iban: "", notes: "",
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function displayName(t: any): string {
+  if (t.companyName) return t.companyName;
+  return [t.firstName, t.lastName].filter(Boolean).join(" ");
+}
+
+function nullify(v: string | null | undefined) {
+  return v?.trim() || undefined;
+}
+
+// ─── Section header ───────────────────────────────────────────────────────────
+
+function Section({ title }: { title: string }) {
+  return (
+    <div className="col-span-2 pt-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{title}</p>
+      <Separator />
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TenantsList() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { data: tenants, isLoading } = useListTenants();
-  
+
   const createMutation = useCreateTenant();
   const updateMutation = useUpdateTenant();
   const deleteMutation = useDeleteTenant();
@@ -48,168 +94,200 @@ export default function TenantsList() {
 
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      dateOfBirth: "",
-      notes: "",
-    },
+    defaultValues: EMPTY,
   });
 
   const onSubmit = (data: TenantFormValues) => {
     const payload = {
-      ...data,
-      email: data.email || undefined,
-      phone: data.phone || undefined,
-      dateOfBirth: data.dateOfBirth || undefined,
-      notes: data.notes || undefined,
+      companyName:   nullify(data.companyName),
+      firstName:     data.firstName,
+      lastName:      data.lastName,
+      contactPerson: nullify(data.contactPerson),
+      street:        nullify(data.street),
+      zipCode:       nullify(data.zipCode),
+      city:          nullify(data.city),
+      email:         nullify(data.email),
+      phone:         nullify(data.phone),
+      mobile:        nullify(data.mobile),
+      dateOfBirth:   nullify(data.dateOfBirth),
+      taxId:         nullify(data.taxId),
+      iban:          nullify(data.iban),
+      notes:         nullify(data.notes),
+    };
+
+    const onSuccess = () => {
+      queryClient.invalidateQueries({ queryKey: getListTenantsQueryKey() });
+      toast({ title: editingId ? "Mieter aktualisiert" : "Mieter angelegt" });
+      setIsDialogOpen(false);
     };
 
     if (editingId) {
-      updateMutation.mutate(
-        { id: editingId, data: payload },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListTenantsQueryKey() });
-            toast({ title: "Mieter aktualisiert" });
-            setIsDialogOpen(false);
-          },
-        }
-      );
+      updateMutation.mutate({ id: editingId, data: payload }, { onSuccess });
     } else {
-      createMutation.mutate(
-        { data: payload as any },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListTenantsQueryKey() });
-            toast({ title: "Mieter erstellt" });
-            setIsDialogOpen(false);
-          },
-        }
-      );
+      createMutation.mutate({ data: payload as any }, { onSuccess });
     }
   };
 
-  const handleEdit = (tenant: any) => {
-    setEditingId(tenant.id);
+  const handleEdit = (t: any) => {
+    setEditingId(t.id);
     form.reset({
-      firstName: tenant.firstName,
-      lastName: tenant.lastName,
-      email: tenant.email || "",
-      phone: tenant.phone || "",
-      dateOfBirth: tenant.dateOfBirth ? new Date(tenant.dateOfBirth).toISOString().split('T')[0] : "",
-      notes: tenant.notes || "",
+      companyName:   t.companyName  ?? "",
+      firstName:     t.firstName    ?? "",
+      lastName:      t.lastName     ?? "",
+      contactPerson: t.contactPerson ?? "",
+      street:        t.street       ?? "",
+      zipCode:       t.zipCode      ?? "",
+      city:          t.city         ?? "",
+      email:         t.email        ?? "",
+      phone:         t.phone        ?? "",
+      mobile:        t.mobile       ?? "",
+      dateOfBirth:   t.dateOfBirth  ? new Date(t.dateOfBirth).toISOString().split("T")[0] : "",
+      taxId:         t.taxId        ?? "",
+      iban:          t.iban         ?? "",
+      notes:         t.notes        ?? "",
     });
     setIsDialogOpen(true);
   };
 
   const handleDelete = (id: number) => {
-    if (!confirm("Sind Sie sicher, dass Sie diesen Mieter löschen möchten?")) return;
-    deleteMutation.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListTenantsQueryKey() });
-          toast({ title: "Mieter gelöscht" });
-        },
-      }
-    );
+    if (!confirm("Mieter wirklich löschen?")) return;
+    deleteMutation.mutate({ id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListTenantsQueryKey() });
+        toast({ title: "Mieter gelöscht" });
+      },
+    });
   };
 
-  const openCreateDialog = () => {
+  const openCreate = () => {
     setEditingId(null);
-    form.reset({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      dateOfBirth: "",
-      notes: "",
-    });
+    form.reset(EMPTY);
     setIsDialogOpen(true);
   };
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
+    <div className="flex-1 space-y-6 p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in duration-500">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-serif text-foreground">Mieter</h1>
-          <p className="text-muted-foreground mt-1 font-sans">Verwalten Sie Ihre Mieter-Datenbank.</p>
+          <p className="text-muted-foreground mt-1 font-sans">CRM — Stammdaten aller Mieter und Gewerbemieter.</p>
         </div>
-        <Button onClick={openCreateDialog} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Neuer Mieter
+        <Button onClick={openCreate} className="gap-2">
+          <Plus className="w-4 h-4" /> Neuer Mieter
         </Button>
       </div>
 
+      {/* Table */}
       <Card className="shadow-sm">
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Kontaktdaten</TableHead>
-                <TableHead>Geburtsdatum</TableHead>
-                <TableHead>Notizen</TableHead>
+                <TableHead>Name / Firma</TableHead>
+                <TableHead className="hidden md:table-cell">Ansprechpartner</TableHead>
+                <TableHead className="hidden lg:table-cell">Adresse</TableHead>
+                <TableHead>Kontakt</TableHead>
                 <TableHead className="text-right">Aktionen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Lade Daten...</TableCell>
+                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Lade Daten…</TableCell>
                 </TableRow>
               ) : tenants?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    <Users className="w-12 h-12 mx-auto text-muted mb-4" />
-                    Keine Mieter gefunden. Erstellen Sie den ersten Eintrag.
+                  <TableCell colSpan={5} className="text-center py-14 text-muted-foreground">
+                    <Users className="w-12 h-12 mx-auto text-muted mb-3 opacity-30" />
+                    <p>Noch keine Mieter angelegt.</p>
                   </TableCell>
                 </TableRow>
               ) : (
                 tenants?.map((tenant) => (
-                  <TableRow key={tenant.id} className="group cursor-pointer hover:bg-[#f4f7f5]/60" onClick={() => navigate(`/tenants/${tenant.id}`)}>
-                    <TableCell className="font-medium text-foreground">
-                      {tenant.firstName} {tenant.lastName}
-                    </TableCell>
+                  <TableRow
+                    key={tenant.id}
+                    className="group cursor-pointer hover:bg-[#f4f7f5]/60"
+                    onClick={() => navigate(`/tenants/${tenant.id}`)}
+                  >
+                    {/* Name */}
                     <TableCell>
-                      <div className="space-y-1 text-sm text-muted-foreground">
+                      <div className="flex flex-col">
+                        {tenant.companyName ? (
+                          <>
+                            <span className="font-semibold text-sm flex items-center gap-1.5">
+                              <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              {tenant.companyName}
+                            </span>
+                            <span className="text-xs text-muted-foreground mt-0.5">
+                              {[tenant.firstName, tenant.lastName].filter(Boolean).join(" ")}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-medium text-sm flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            {[tenant.firstName, tenant.lastName].filter(Boolean).join(" ")}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Ansprechpartner */}
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                      {tenant.contactPerson || "—"}
+                    </TableCell>
+
+                    {/* Adresse */}
+                    <TableCell className="hidden lg:table-cell">
+                      {tenant.street || tenant.city ? (
+                        <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                          <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span>
+                            {tenant.street && <span>{tenant.street}<br /></span>}
+                            {[tenant.zipCode, tenant.city].filter(Boolean).join(" ")}
+                          </span>
+                        </div>
+                      ) : "—"}
+                    </TableCell>
+
+                    {/* Kontakt */}
+                    <TableCell>
+                      <div className="space-y-0.5 text-sm text-muted-foreground">
                         {tenant.email && (
                           <div className="flex items-center gap-1.5">
-                            <Mail className="w-3.5 h-3.5" />
-                            <a href={`mailto:${tenant.email}`} className="hover:text-primary transition-colors">{tenant.email}</a>
+                            <Mail className="w-3.5 h-3.5 shrink-0" />
+                            <a
+                              href={`mailto:${tenant.email}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="hover:text-primary transition-colors truncate max-w-[160px]"
+                            >
+                              {tenant.email}
+                            </a>
                           </div>
                         )}
                         {tenant.phone && (
                           <div className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5" />
-                            {tenant.phone}
+                            <Phone className="w-3.5 h-3.5 shrink-0" />
+                            <a href={`tel:${tenant.phone}`} onClick={(e) => e.stopPropagation()}>{tenant.phone}</a>
                           </div>
                         )}
-                        {!tenant.email && !tenant.phone && "-"}
+                        {tenant.mobile && !tenant.phone && (
+                          <div className="flex items-center gap-1.5">
+                            <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                            <a href={`tel:${tenant.mobile}`} onClick={(e) => e.stopPropagation()}>{tenant.mobile}</a>
+                          </div>
+                        )}
+                        {!tenant.email && !tenant.phone && !tenant.mobile && "—"}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-sm">
-                        {tenant.dateOfBirth ? (
-                          <>
-                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                            {formatDate(tenant.dateOfBirth)}
-                          </>
-                        ) : "-"}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                      {tenant.notes || "-"}
-                    </TableCell>
+
+                    {/* Aktionen */}
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(tenant)}>
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(tenant); }}>
                           <Edit className="w-4 h-4 text-muted-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(tenant.id)}>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(tenant.id); }}>
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       </div>
@@ -222,100 +300,179 @@ export default function TenantsList() {
         </CardContent>
       </Card>
 
+      {/* CRM Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Mieter bearbeiten" : "Neuen Mieter anlegen"}</DialogTitle>
             <DialogDescription>
-              Geben Sie die persönlichen Daten des Mieters ein.
+              Stammdaten für das CRM — alle Felder außer Vor- und Nachname sind optional.
             </DialogDescription>
           </DialogHeader>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vorname</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Max" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nachname</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Mustermann" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>E-Mail</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="max@example.com" {...field} value={field.value ?? ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefon</FormLabel>
-                      <FormControl>
-                        <Input type="tel" placeholder="+49 123 45678" {...field} value={field.value ?? ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="dateOfBirth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Geburtsdatum</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} value={field.value ?? ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Notizen</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Zusätzliche Informationen..." {...field} value={field.value ?? ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+
+                {/* ── Firma & Name ──────────────────────────────────────── */}
+                <Section title="Firma & Name" />
+
+                <FormField control={form.control} name="companyName" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Firmenname</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Müller GmbH (leer lassen bei Privatpersonen)" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="firstName" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vorname / Inhaber *</FormLabel>
+                    <FormControl><Input placeholder="Max" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="lastName" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nachname *</FormLabel>
+                    <FormControl><Input placeholder="Mustermann" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="contactPerson" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Ansprechpartner (abweichend)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="z.B. Frau Schmidt (Buchhaltung)" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* ── Adresse ───────────────────────────────────────────── */}
+                <Section title="Adresse" />
+
+                <FormField control={form.control} name="street" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Straße + Hausnummer</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Musterstraße 12" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="zipCode" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>PLZ</FormLabel>
+                    <FormControl><Input placeholder="30159" {...field} value={field.value ?? ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="city" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ort</FormLabel>
+                    <FormControl><Input placeholder="Hannover" {...field} value={field.value ?? ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* ── Kontakt ───────────────────────────────────────────── */}
+                <Section title="Kontakt" />
+
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>E-Mail-Adresse</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="info@firma.de" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefon (Festnetz)</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="+49 511 123456" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="mobile" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mobilnummer</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="+49 171 1234567" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* ── Weitere Angaben ───────────────────────────────────── */}
+                <Section title="Weitere Angaben" />
+
+                <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Geburtsdatum</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="taxId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>USt-IdNr / Steuernummer</FormLabel>
+                    <FormControl>
+                      <Input placeholder="DE123456789" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="iban" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>IBAN (für Lastschrift / Mahnungen)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="DE89 3704 0044 0532 0130 00" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* ── Notizen ───────────────────────────────────────────── */}
+                <Section title="Notizen" />
+
+                <FormField control={form.control} name="notes" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Interne Notizen</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Weitere Informationen, Besonderheiten…"
+                        className="resize-none"
+                        rows={3}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
               </div>
+
               <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Abbrechen</Button>
                 <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                  {editingId ? "Speichern" : "Erstellen"}
+                  {editingId ? "Speichern" : "Anlegen"}
                 </Button>
               </DialogFooter>
             </form>

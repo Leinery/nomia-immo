@@ -10,6 +10,7 @@ import {
 import {
   ArrowLeft, Mail, Send, FileText, Phone, Pencil, Trash2, AlertCircle,
   MailOpen, BookmarkCheck, StickyNote, MessageSquarePlus, Package, Wrench,
+  Building2, User, MapPin, Smartphone, CreditCard, Hash,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -125,16 +126,74 @@ export default function TenantDetailPage() {
 
       {/* Header card */}
       <Card>
-        <CardContent className="pt-5 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-semibold text-[#0f1c15]">{tenant.firstName} {tenant.lastName}</h1>
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mt-1">
-                {tenant.email && <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{tenant.email}</span>}
-                {tenant.phone && <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{tenant.phone}</span>}
+        <CardContent className="pt-5 pb-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-3 flex-1 min-w-0">
+              {/* Name / Firma */}
+              <div>
+                {(tenant as any).companyName ? (
+                  <>
+                    <h1 className="text-2xl font-semibold text-[#0f1c15] flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
+                      {(tenant as any).companyName}
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-0.5 ml-7">
+                      {[tenant.firstName, tenant.lastName].filter(Boolean).join(" ")}
+                      {(tenant as any).contactPerson && (
+                        <span className="ml-3 text-xs bg-muted px-1.5 py-0.5 rounded">
+                          AP: {(tenant as any).contactPerson}
+                        </span>
+                      )}
+                    </p>
+                  </>
+                ) : (
+                  <h1 className="text-2xl font-semibold text-[#0f1c15] flex items-center gap-2">
+                    <User className="h-5 w-5 text-muted-foreground shrink-0" />
+                    {tenant.firstName} {tenant.lastName}
+                  </h1>
+                )}
+              </div>
+
+              {/* Kontaktdaten-Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-sm text-muted-foreground ml-7">
+                {tenant.email && (
+                  <a href={`mailto:${tenant.email}`} className="flex items-center gap-1.5 hover:text-primary transition-colors">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />{tenant.email}
+                  </a>
+                )}
+                {tenant.phone && (
+                  <a href={`tel:${tenant.phone}`} className="flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 shrink-0" />{tenant.phone}
+                  </a>
+                )}
+                {(tenant as any).mobile && (
+                  <a href={`tel:${(tenant as any).mobile}`} className="flex items-center gap-1.5">
+                    <Smartphone className="h-3.5 w-3.5 shrink-0" />{(tenant as any).mobile}
+                  </a>
+                )}
+                {((tenant as any).street || (tenant as any).city) && (
+                  <span className="flex items-start gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      {(tenant as any).street}{(tenant as any).street && <br />}
+                      {[(tenant as any).zipCode, (tenant as any).city].filter(Boolean).join(" ")}
+                    </span>
+                  </span>
+                )}
+                {(tenant as any).iban && (
+                  <span className="flex items-center gap-1.5 font-mono text-xs">
+                    <CreditCard className="h-3.5 w-3.5 shrink-0" />{(tenant as any).iban}
+                  </span>
+                )}
+                {(tenant as any).taxId && (
+                  <span className="flex items-center gap-1.5">
+                    <Hash className="h-3.5 w-3.5 shrink-0" />{(tenant as any).taxId}
+                  </span>
+                )}
               </div>
             </div>
-            <Button className="bg-[#1C3829] hover:bg-[#2a5240] text-white" onClick={openSendDialog}>
+
+            <Button className="bg-[#1C3829] hover:bg-[#2a5240] text-white shrink-0" onClick={openSendDialog}>
               <MessageSquarePlus className="h-4 w-4 mr-1.5" />Nachricht
             </Button>
           </div>

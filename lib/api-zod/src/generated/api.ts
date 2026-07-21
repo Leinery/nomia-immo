@@ -265,11 +265,19 @@ export const DeleteUnitResponse = zod.void()
  */
 export const ListTenantsResponseItem = zod.object({
   "id": zod.number(),
+  "companyName": zod.string().nullish(),
   "firstName": zod.string(),
   "lastName": zod.string(),
+  "contactPerson": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "zipCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
   "dateOfBirth": zod.coerce.date().nullish(),
+  "taxId": zod.string().nullish(),
+  "iban": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
@@ -284,21 +292,37 @@ export const ListTenantsResponse = zod.array(ListTenantsResponseItem)
 
 
 export const CreateTenantBody = zod.object({
+  "companyName": zod.string().optional(),
   "firstName": zod.string().min(1),
   "lastName": zod.string().min(1),
+  "contactPerson": zod.string().optional(),
+  "street": zod.string().optional(),
+  "zipCode": zod.string().optional(),
+  "city": zod.string().optional(),
   "email": zod.string().optional(),
   "phone": zod.string().optional(),
+  "mobile": zod.string().optional(),
   "dateOfBirth": zod.coerce.date().optional(),
+  "taxId": zod.string().optional(),
+  "iban": zod.string().optional(),
   "notes": zod.string().optional()
 })
 
 export const CreateTenantResponse = zod.object({
   "id": zod.number(),
+  "companyName": zod.string().nullish(),
   "firstName": zod.string(),
   "lastName": zod.string(),
+  "contactPerson": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "zipCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
   "dateOfBirth": zod.coerce.date().nullish(),
+  "taxId": zod.string().nullish(),
+  "iban": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
@@ -313,11 +337,19 @@ export const GetTenantParams = zod.object({
 
 export const GetTenantResponse = zod.object({
   "id": zod.number(),
+  "companyName": zod.string().nullish(),
   "firstName": zod.string(),
   "lastName": zod.string(),
+  "contactPerson": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "zipCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
   "dateOfBirth": zod.coerce.date().nullish(),
+  "taxId": zod.string().nullish(),
+  "iban": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
@@ -331,21 +363,37 @@ export const UpdateTenantParams = zod.object({
 })
 
 export const UpdateTenantBody = zod.object({
+  "companyName": zod.string().optional(),
   "firstName": zod.string().optional(),
   "lastName": zod.string().optional(),
+  "contactPerson": zod.string().optional(),
+  "street": zod.string().optional(),
+  "zipCode": zod.string().optional(),
+  "city": zod.string().optional(),
   "email": zod.string().optional(),
   "phone": zod.string().optional(),
+  "mobile": zod.string().optional(),
   "dateOfBirth": zod.string().optional(),
+  "taxId": zod.string().optional(),
+  "iban": zod.string().optional(),
   "notes": zod.string().optional()
 })
 
 export const UpdateTenantResponse = zod.object({
   "id": zod.number(),
+  "companyName": zod.string().nullish(),
   "firstName": zod.string(),
   "lastName": zod.string(),
+  "contactPerson": zod.string().nullish(),
+  "street": zod.string().nullish(),
+  "zipCode": zod.string().nullish(),
+  "city": zod.string().nullish(),
   "email": zod.string().nullish(),
   "phone": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
   "dateOfBirth": zod.coerce.date().nullish(),
+  "taxId": zod.string().nullish(),
+  "iban": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })

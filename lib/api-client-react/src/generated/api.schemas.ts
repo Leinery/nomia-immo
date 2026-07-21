@@ -159,36 +159,68 @@ export interface UnitUpdate {
 
 export interface Tenant {
   id: number;
+  /** @nullable */
+  companyName?: string | null;
   firstName: string;
   lastName: string;
+  /** @nullable */
+  contactPerson?: string | null;
+  /** @nullable */
+  street?: string | null;
+  /** @nullable */
+  zipCode?: string | null;
+  /** @nullable */
+  city?: string | null;
   /** @nullable */
   email?: string | null;
   /** @nullable */
   phone?: string | null;
   /** @nullable */
+  mobile?: string | null;
+  /** @nullable */
   dateOfBirth?: string | null;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  iban?: string | null;
   /** @nullable */
   notes?: string | null;
   createdAt: string;
 }
 
 export interface TenantInput {
+  companyName?: string;
   /** @minLength 1 */
   firstName: string;
   /** @minLength 1 */
   lastName: string;
+  contactPerson?: string;
+  street?: string;
+  zipCode?: string;
+  city?: string;
   email?: string;
   phone?: string;
+  mobile?: string;
   dateOfBirth?: string;
+  taxId?: string;
+  iban?: string;
   notes?: string;
 }
 
 export interface TenantUpdate {
+  companyName?: string;
   firstName?: string;
   lastName?: string;
+  contactPerson?: string;
+  street?: string;
+  zipCode?: string;
+  city?: string;
   email?: string;
   phone?: string;
+  mobile?: string;
   dateOfBirth?: string;
+  taxId?: string;
+  iban?: string;
   notes?: string;
 }
 
