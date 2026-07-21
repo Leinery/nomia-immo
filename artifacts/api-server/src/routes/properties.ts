@@ -39,7 +39,7 @@ router.get("/properties", async (_req, res): Promise<void> => {
   const today = new Date().toISOString().slice(0, 10);
   const activeContracts = await db.select({
     id: contractsTable.id, unitId: contractsTable.unitId,
-    kaltmiete: contractsTable.kaltmiete, nebenkostenvorauszahlung: contractsTable.nebenkostenvorauszahlung,
+    monthlyRent: contractsTable.monthlyRent, nebenkostenvorauszahlung: contractsTable.nebenkostenvorauszahlung,
   }).from(contractsTable).where(or(isNull(contractsTable.endDate), gte(contractsTable.endDate, today)));
 
   // Build maps
@@ -60,7 +60,7 @@ router.get("/properties", async (_req, res): Promise<void> => {
     const monthlyRent = propUnits.reduce((s, u) => {
       const c = contractsByUnitId.get(u.id);
       if (!c) return s;
-      return s + parseFloat(c.kaltmiete) + parseFloat(c.nebenkostenvorauszahlung ?? "0");
+      return s + parseFloat(c.monthlyRent) + parseFloat(c.nebenkostenvorauszahlung ?? "0");
     }, 0);
 
     return {
