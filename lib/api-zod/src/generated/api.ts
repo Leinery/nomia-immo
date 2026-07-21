@@ -371,6 +371,7 @@ export const ListContractsResponseItem = zod.object({
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date().nullish(),
   "monthlyRent": zod.number(),
+  "nebenkostenvorauszahlung": zod.number(),
   "deposit": zod.number().nullish(),
   "status": zod.enum(['active', 'terminated', 'pending']),
   "notes": zod.string().nullish(),
@@ -390,6 +391,7 @@ export const CreateContractBody = zod.object({
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date().optional(),
   "monthlyRent": zod.number(),
+  "nebenkostenvorauszahlung": zod.number().optional(),
   "deposit": zod.number().optional(),
   "status": zod.enum(['active', 'terminated', 'pending']).default(createContractBodyStatusDefault),
   "notes": zod.string().optional()
@@ -402,6 +404,7 @@ export const CreateContractResponse = zod.object({
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date().nullish(),
   "monthlyRent": zod.number(),
+  "nebenkostenvorauszahlung": zod.number(),
   "deposit": zod.number().nullish(),
   "status": zod.enum(['active', 'terminated', 'pending']),
   "notes": zod.string().nullish(),
@@ -423,6 +426,7 @@ export const GetContractResponse = zod.object({
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date().nullish(),
   "monthlyRent": zod.number(),
+  "nebenkostenvorauszahlung": zod.number(),
   "deposit": zod.number().nullish(),
   "status": zod.enum(['active', 'terminated', 'pending']),
   "notes": zod.string().nullish(),
@@ -441,6 +445,7 @@ export const UpdateContractBody = zod.object({
   "startDate": zod.coerce.date().optional(),
   "endDate": zod.coerce.date().optional(),
   "monthlyRent": zod.number().optional(),
+  "nebenkostenvorauszahlung": zod.number().optional(),
   "deposit": zod.number().optional(),
   "status": zod.enum(['active', 'terminated', 'pending']).optional(),
   "notes": zod.string().optional()
@@ -453,6 +458,7 @@ export const UpdateContractResponse = zod.object({
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date().nullish(),
   "monthlyRent": zod.number(),
+  "nebenkostenvorauszahlung": zod.number(),
   "deposit": zod.number().nullish(),
   "status": zod.enum(['active', 'terminated', 'pending']),
   "notes": zod.string().nullish(),
@@ -734,6 +740,35 @@ export const GetIncomeByMonthResponseItem = zod.object({
   "label": zod.string().optional()
 })
 export const GetIncomeByMonthResponse = zod.array(GetIncomeByMonthResponseItem)
+
+// ─── Rent Debits (Sollstellungen) ─────────────────────────────────────────────
+
+export const RentDebitItem = zod.object({
+  id: zod.number(),
+  contractId: zod.number(),
+  year: zod.number(),
+  month: zod.number(),
+  kaltmiete: zod.number(),
+  nebenkostenvorauszahlung: zod.number(),
+  total: zod.number(),
+  paid: zod.number(),
+  balance: zod.number(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+})
+export const ListRentDebitsResponse = zod.array(RentDebitItem)
+
+export const GenerateRentDebitsBody = zod.object({
+  from: zod.string().optional(), // "YYYY-MM"
+  to: zod.string().optional(),   // "YYYY-MM"
+})
+export const GenerateRentDebitsResponse = zod.object({ generated: zod.number() })
+
+export const UpdateRentDebitBody = zod.object({
+  kaltmiete: zod.number().optional(),
+  nebenkostenvorauszahlung: zod.number().optional(),
+  notes: zod.string().optional().nullable(),
+})
 
 // Object Storage
 export const RequestUploadUrlBody = zod.object({

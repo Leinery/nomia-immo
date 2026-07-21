@@ -8,3 +8,4 @@ export * from "./utility-statements";
 export * from "./rent-payments";
 export * from "./meters";
 export * from "./meter-readings";
+export * from "./rent-debits";

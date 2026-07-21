@@ -2673,6 +2673,103 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 export type GetIncomeByMonthQueryResult = NonNullable<Awaited<ReturnType<typeof getIncomeByMonth>>>
 export type GetIncomeByMonthQueryError = ErrorType<unknown>
 
+// ─── Rent Debits (Sollstellungen) ─────────────────────────────────────────────
+
+export type RentDebitWithPayments = {
+  id: number;
+  contractId: number;
+  year: number;
+  month: number;
+  kaltmiete: number;
+  nebenkostenvorauszahlung: number;
+  total: number;
+  paid: number;
+  balance: number;
+  notes: string | null;
+  createdAt: string;
+};
+
+// List
+export const getListRentDebitsQueryKey = (contractId: number) =>
+  [`/api/contracts/${contractId}/debits`] as const;
+
+export const listRentDebits = async (contractId: number, options?: RequestInit): Promise<RentDebitWithPayments[]> =>
+  customFetch<RentDebitWithPayments[]>(`/api/contracts/${contractId}/debits`, { ...options, method: 'GET' });
+
+export const getListRentDebitsQueryOptions = <TData = Awaited<ReturnType<typeof listRentDebits>>, TError = ErrorType<unknown>>(
+  contractId: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof listRentDebits>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListRentDebitsQueryKey(contractId);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listRentDebits>>> = ({ signal }) =>
+    listRentDebits(contractId, { signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof listRentDebits>>, TError, TData> & { queryKey: QueryKey };
+};
+
+export function useListRentDebits<TData = Awaited<ReturnType<typeof listRentDebits>>, TError = ErrorType<unknown>>(
+  contractId: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof listRentDebits>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRentDebitsQueryOptions(contractId, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+// Generate
+export const generateRentDebits = async (
+  contractId: number,
+  body: { from?: string; to?: string },
+  options?: RequestInit,
+): Promise<{ generated: number }> =>
+  customFetch<{ generated: number }>(`/api/contracts/${contractId}/debits/generate`, {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
+    body: JSON.stringify(body),
+  });
+
+export function useGenerateRentDebits(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof generateRentDebits>>, ErrorType<unknown>, { contractId: number; body: { from?: string; to?: string } }> },
+) {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateRentDebits>>, { contractId: number; body: { from?: string; to?: string } }> =
+    (vars) => generateRentDebits(vars.contractId, vars.body);
+  return useMutation({ mutationFn, ...options?.mutation });
+}
+
+// Update single debit
+export const updateRentDebit = async (
+  id: number,
+  body: { kaltmiete?: number; nebenkostenvorauszahlung?: number; notes?: string | null },
+  options?: RequestInit,
+): Promise<RentDebitWithPayments> =>
+  customFetch<RentDebitWithPayments>(`/api/rent-debits/${id}`, {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
+    body: JSON.stringify(body),
+  });
+
+export function useUpdateRentDebit(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateRentDebit>>, ErrorType<unknown>, { id: number; body: { kaltmiete?: number; nebenkostenvorauszahlung?: number; notes?: string | null } }> },
+) {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRentDebit>>, { id: number; body: { kaltmiete?: number; nebenkostenvorauszahlung?: number; notes?: string | null } }> =
+    (vars) => updateRentDebit(vars.id, vars.body);
+  return useMutation({ mutationFn, ...options?.mutation });
+}
+
+// Delete single debit
+export const deleteRentDebit = async (id: number, options?: RequestInit): Promise<void> =>
+  customFetch<void>(`/api/rent-debits/${id}`, { ...options, method: 'DELETE' });
+
+export function useDeleteRentDebit(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteRentDebit>>, ErrorType<unknown>, { id: number }> },
+) {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRentDebit>>, { id: number }> =
+    (vars) => deleteRentDebit(vars.id);
+  return useMutation({ mutationFn, ...options?.mutation });
+}
+
 
 /**
  * @summary Monthly income for the past 12 months

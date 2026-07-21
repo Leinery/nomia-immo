@@ -15,6 +15,7 @@ import PropertiesList from "@/pages/properties/index";
 import PropertyDetail from "@/pages/properties/detail";
 import TenantsList from "@/pages/tenants/index";
 import ContractsList from "@/pages/contracts/index";
+import ContractDetail from "@/pages/contracts/detail";
 import DocumentsList from "@/pages/documents/index";
 import UtilityCostsList from "@/pages/utility-costs/index";
 import UtilityStatementsList from "@/pages/utility-statements/index";
@@ -151,6 +152,7 @@ function ProtectedRouter() {
             <Route path="/properties" component={PropertiesList} />
             <Route path="/properties/:id" component={PropertyDetail} />
             <Route path="/tenants" component={TenantsList} />
+            <Route path="/contracts/:id" component={ContractDetail} />
             <Route path="/contracts" component={ContractsList} />
             <Route path="/utility-costs" component={UtilityCostsList} />
             <Route path="/utility-statements" component={UtilityStatementsList} />

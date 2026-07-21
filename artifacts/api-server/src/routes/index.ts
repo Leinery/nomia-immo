@@ -11,6 +11,7 @@ import dashboardRouter from "./dashboard";
 import bankingRouter from "./banking";
 import metersRouter from "./meters";
 import storageRouter from "./storage";
+import rentDebitsRouter from "./rent-debits";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(utilityStatementsRouter);
 router.use(dashboardRouter);
 router.use(bankingRouter);
 router.use(metersRouter);
+router.use(rentDebitsRouter);
 
 export default router;
