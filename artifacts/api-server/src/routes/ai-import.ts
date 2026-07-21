@@ -178,7 +178,7 @@ router.post(
         })();
       }
 
-      res.json({ ...parsed, _onedriveCatFolder: catFolder });
+      res.json({ ...parsed, _onedriveCatFolder: aiCategory });
     } catch (err: any) {
       console.error("AI Import error:", err);
       res.status(500).json({ error: err?.message ?? "Unbekannter Fehler bei der KI-Analyse." });
