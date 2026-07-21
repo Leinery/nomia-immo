@@ -438,6 +438,7 @@ export interface RentalOverviewItem {
   propertyName: string;
   unitId: number;
   unitName: string;
+  unitType: string;
   status: RentalOverviewItemStatus;
   /** @nullable */
   tenantName?: string | null;

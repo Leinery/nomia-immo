@@ -173,6 +173,7 @@ export default function Dashboard() {
               <div className="divide-y">
                 {propertyGroups.map((group) => {
                   const isOpen = expandedIds.has(group.propertyId);
+                  const mainUnits = group.units.filter(u => (u as any).unitType !== "parking" && (u as any).unitType !== "garage");
                   const occupied = group.units.filter(u => u.status === "occupied").length;
                   const groupRent = group.units.reduce((s, u) => s + (u.monthlyRent ?? 0), 0);
                   return (
@@ -202,7 +203,7 @@ export default function Dashboard() {
                       {/* ── Units ── */}
                       {isOpen && (
                         <div className="bg-muted/10 divide-y divide-border/50">
-                          {group.units.map((item) => (
+                          {mainUnits.map((item) => (
                             <div key={item.unitId} className="flex items-center gap-3 pl-11 pr-4 py-2.5">
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium text-foreground truncate">{item.unitName}</div>

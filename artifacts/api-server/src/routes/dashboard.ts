@@ -57,6 +57,7 @@ router.get("/dashboard/rental-overview", async (_req, res): Promise<void> => {
       propertyName: propertiesTable.name,
       unitId: unitsTable.id,
       unitName: unitsTable.name,
+      unitType: unitsTable.unitType,
       status: unitsTable.status,
       monthlyRent: unitsTable.monthlyRent,
     })
@@ -83,14 +84,18 @@ router.get("/dashboard/rental-overview", async (_req, res): Promise<void> => {
           tenantName = `${tenantRows[0].firstName} ${tenantRows[0].lastName}`;
         }
       }
+      // Prefer unit-level rent; fall back to active contract rent (commercial/parking units often store rent only on the contract)
+      const unitRent = row.monthlyRent != null ? parseFloat(row.monthlyRent) : null;
+      const contractRent = contract?.monthlyRent != null ? parseFloat(contract.monthlyRent) : null;
       return {
         propertyId: row.propertyId,
         propertyName: row.propertyName,
         unitId: row.unitId,
         unitName: row.unitName,
+        unitType: row.unitType,
         status: row.status,
         tenantName,
-        monthlyRent: row.monthlyRent != null ? parseFloat(row.monthlyRent) : null,
+        monthlyRent: unitRent ?? contractRent,
         contractStart: contract?.startDate ?? null,
         contractEnd: contract?.endDate ?? null,
       };

@@ -781,6 +781,7 @@ export const GetRentalOverviewResponseItem = zod.object({
   "propertyName": zod.string(),
   "unitId": zod.number(),
   "unitName": zod.string(),
+  "unitType": zod.string(),
   "status": zod.enum(['vacant', 'occupied', 'renovation']),
   "tenantName": zod.string().nullish(),
   "monthlyRent": zod.number().nullish(),
