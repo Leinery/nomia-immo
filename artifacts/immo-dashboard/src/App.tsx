@@ -105,7 +105,12 @@ function ClerkQueryClientCacheInvalidator() {
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {
       const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
+      if (prevUserIdRef.current === undefined && userId !== null) {
+        // Clerk just resolved the session for the first time — invalidate any
+        // queries that may have failed with 401 before the session was ready.
+        qc.invalidateQueries();
+      } else if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
+        // User changed (login/logout) — clear everything.
         qc.clear();
       }
       prevUserIdRef.current = userId;
