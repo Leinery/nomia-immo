@@ -46,7 +46,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const unitSchema = z.object({
   name: z.string().min(1),
-  unitType: z.enum(["residential", "garage", "parking"]).default("residential"),
+  unitType: z.enum(["residential", "commercial", "garage", "parking"]).default("residential"),
   floor: z.coerce.number().optional().nullable(),
   area: z.coerce.number().optional().nullable(),
   rooms: z.coerce.number().optional().nullable(),
@@ -60,9 +60,10 @@ type UnitFormValues = z.infer<typeof unitSchema>;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const UNIT_TYPE_META: Record<string, { label: string; icon: React.ReactNode; plural: string }> = {
-  residential: { label: "Wohnung",    icon: <Home className="w-3.5 h-3.5" />,          plural: "Wohnungen"    },
-  garage:      { label: "Garage",     icon: <Car className="w-3.5 h-3.5" />,           plural: "Garagen"      },
-  parking:     { label: "Stellplatz", icon: <ParkingSquare className="w-3.5 h-3.5" />, plural: "Stellplätze"  },
+  residential: { label: "Wohnung",       icon: <Home className="w-3.5 h-3.5" />,          plural: "Wohnungen"       },
+  commercial:  { label: "Gewerbe",       icon: <Building2 className="w-3.5 h-3.5" />,     plural: "Gewerbeeinheiten"},
+  garage:      { label: "Garage",        icon: <Car className="w-3.5 h-3.5" />,           plural: "Garagen"         },
+  parking:     { label: "Stellplatz",    icon: <ParkingSquare className="w-3.5 h-3.5" />, plural: "Stellplätze"     },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -109,7 +110,7 @@ export default function PropertyDetail() {
 
   const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false);
   const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
-  const [activeUnitType, setActiveUnitType] = useState<"residential" | "garage" | "parking">("residential");
+  const [activeUnitType, setActiveUnitType] = useState<"residential" | "commercial" | "garage" | "parking">("residential");
   const [editingProp, setEditingProp] = useState(false);
 
   const unitForm = useForm<UnitFormValues>({
@@ -119,7 +120,7 @@ export default function PropertyDetail() {
 
   // Unit groupings
   const unitGroups = useMemo(() => {
-    const groups: Record<string, typeof units> = { residential: [], garage: [], parking: [] };
+    const groups: Record<string, typeof units> = { residential: [], commercial: [], garage: [], parking: [] };
     for (const u of units ?? []) {
       const t = (u as any).unitType ?? "residential";
       if (t in groups) groups[t]!.push(u);
@@ -170,7 +171,7 @@ export default function PropertyDetail() {
     }
   };
 
-  const openCreateUnit = (type: "residential" | "garage" | "parking" = activeUnitType) => {
+  const openCreateUnit = (type: "residential" | "commercial" | "garage" | "parking" = activeUnitType) => {
     setEditingUnitId(null);
     unitForm.reset({ status: "vacant", unitType: type });
     setIsUnitDialogOpen(true);
@@ -266,7 +267,7 @@ export default function PropertyDetail() {
         {/* Unit type filter */}
         <div className="px-3 py-2 border-b">
           <div className="flex gap-1 flex-wrap">
-            {(["residential", "garage", "parking"] as const).map((t) => {
+            {(["residential", "commercial", "garage", "parking"] as const).map((t) => {
               const meta = UNIT_TYPE_META[t];
               const count = unitGroups[t]?.length ?? 0;
               if (count === 0 && t !== activeUnitType) return null;
@@ -340,7 +341,7 @@ export default function PropertyDetail() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-bold text-foreground">{property.name}</h1>
               {/* Unit count badges */}
-              {(["residential", "garage", "parking"] as const).map((t) => {
+              {(["residential", "commercial", "garage", "parking"] as const).map((t) => {
                 const count = unitGroups[t]?.length ?? 0;
                 if (count === 0) return null;
                 return (
@@ -528,6 +529,7 @@ export default function PropertyDetail() {
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="residential">Wohnung</SelectItem>
+                        <SelectItem value="commercial">Gewerbeeinheit</SelectItem>
                         <SelectItem value="garage">Garage</SelectItem>
                         <SelectItem value="parking">Stellplatz</SelectItem>
                       </SelectContent>

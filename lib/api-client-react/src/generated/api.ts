@@ -2686,9 +2686,10 @@ export type UnitRentOverviewItem = {
 };
 
 export type PropertyWithSummary = PropertyType & {
-  unitsByType: { residential: number; garage: number; parking: number };
+  unitsByType: { residential: number; garage: number; parking: number; commercial: number };
   totalArea: number;
   monthlyRent: number;
+  owner?: string | null;
 };
 
 export const getGetPropertyRentOverviewQueryKey = (propertyId: number) =>

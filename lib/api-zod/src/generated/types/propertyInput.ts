@@ -17,4 +17,6 @@ export interface PropertyInput {
   purchasePrice?: number;
   purchaseYear?: number;
   totalUnits?: number;
+  /** @nullable */
+  owner?: string | null;
 }

@@ -11,6 +11,7 @@ export const propertiesTable = pgTable("properties", {
   purchasePrice: numeric("purchase_price", { precision: 12, scale: 2 }),
   purchaseYear: integer("purchase_year"),
   totalUnits: integer("total_units").notNull().default(1),
+  owner: text("owner"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

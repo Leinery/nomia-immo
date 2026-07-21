@@ -19,5 +19,7 @@ export interface Property {
   /** @nullable */
   purchaseYear?: number | null;
   totalUnits?: number;
+  /** @nullable */
+  owner?: string | null;
   createdAt: Date;
 }

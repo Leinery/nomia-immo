@@ -15,4 +15,6 @@ export interface PropertyUpdate {
   purchasePrice?: number;
   purchaseYear?: number;
   totalUnits?: number;
+  /** @nullable */
+  owner?: string | null;
 }

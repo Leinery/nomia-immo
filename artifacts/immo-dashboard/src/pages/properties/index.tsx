@@ -39,6 +39,7 @@ const propertySchema = z.object({
   description: z.string().optional(),
   purchasePrice: z.coerce.number().optional().nullable(),
   purchaseYear: z.coerce.number().optional().nullable(),
+  owner: z.string().optional().nullable(),
 });
 type PropertyFormValues = z.infer<typeof propertySchema>;
 
@@ -51,9 +52,10 @@ const TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: s
   land:              { label: "Grundstück",         icon: <MapIcon className="w-3.5 h-3.5" />,  color: "bg-stone-50 text-stone-600 border-stone-200" },
 };
 
-function UnitBadges({ unitsByType }: { unitsByType?: { residential: number; garage: number; parking: number } }) {
+function UnitBadges({ unitsByType }: { unitsByType?: { residential: number; garage: number; parking: number; commercial?: number } }) {
   if (!unitsByType) return <span className="text-muted-foreground text-sm">—</span>;
   const parts: string[] = [];
+  if (unitsByType.commercial  > 0) parts.push(`${unitsByType.commercial} Gew.`);
   if (unitsByType.residential > 0) parts.push(`${unitsByType.residential} Whg.`);
   if (unitsByType.garage > 0)      parts.push(`${unitsByType.garage} Gar.`);
   if (unitsByType.parking > 0)     parts.push(`${unitsByType.parking} Stpl.`);
@@ -77,20 +79,29 @@ export default function PropertiesList() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("all");
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertySchema),
     defaultValues: { name: "", address: "", type: "apartment_building" },
   });
 
+  const uniqueOwners = useMemo(() =>
+    [...new Set((properties ?? []).map(p => (p as PropertyWithSummary).owner).filter(Boolean) as string[])].sort(),
+  [properties]);
+
   const filtered = useMemo(() => {
     if (!properties) return [];
-    if (!search.trim()) return properties;
-    const q = search.toLowerCase();
-    return properties.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.address.toLowerCase().includes(q),
-    );
-  }, [properties, search]);
+    let list = properties as PropertyWithSummary[];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((p) => p.name.toLowerCase().includes(q) || p.address.toLowerCase().includes(q));
+    }
+    if (ownerFilter !== "all") {
+      list = list.filter((p) => (p.owner ?? "") === ownerFilter);
+    }
+    return list;
+  }, [properties, search, ownerFilter]);
 
   // Totals
   const totals = useMemo(() => ({
@@ -100,7 +111,7 @@ export default function PropertiesList() {
   }), [filtered]);
 
   const onSubmit = async (data: PropertyFormValues) => {
-    const payload = { ...data, purchasePrice: data.purchasePrice || undefined, purchaseYear: data.purchaseYear || undefined };
+    const payload = { ...data, purchasePrice: data.purchasePrice || undefined, purchaseYear: data.purchaseYear || undefined, owner: data.owner || null };
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, data: payload as any });
@@ -118,13 +129,13 @@ export default function PropertiesList() {
 
   const openEdit = (p: PropertyWithSummary) => {
     setEditingId(p.id);
-    form.reset({ name: p.name, address: p.address, type: p.type as any, description: p.description ?? "", purchasePrice: p.purchasePrice ?? undefined, purchaseYear: p.purchaseYear ?? undefined });
+    form.reset({ name: p.name, address: p.address, type: p.type as any, description: p.description ?? "", purchasePrice: p.purchasePrice ?? undefined, purchaseYear: p.purchaseYear ?? undefined, owner: p.owner ?? "" });
     setIsDialogOpen(true);
   };
 
   const openCreate = () => {
     setEditingId(null);
-    form.reset({ name: "", address: "", type: "apartment_building" });
+    form.reset({ name: "", address: "", type: "apartment_building", owner: "" });
     setIsDialogOpen(true);
   };
 
@@ -150,7 +161,7 @@ export default function PropertiesList() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -160,6 +171,19 @@ export default function PropertiesList() {
             className="pl-9"
           />
         </div>
+        {uniqueOwners.length > 0 && (
+          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+            <SelectTrigger className="w-52 h-9 text-sm">
+              <SelectValue placeholder="Eigentümer filtern" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle Eigentümer</SelectItem>
+              {uniqueOwners.map((o) => (
+                <SelectItem key={o} value={o}>{o}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Table */}
@@ -173,6 +197,7 @@ export default function PropertiesList() {
                 <TableHead className="hidden sm:table-cell">Einheiten</TableHead>
                 <TableHead className="text-right hidden md:table-cell">Gesamtfläche</TableHead>
                 <TableHead className="hidden lg:table-cell">Kategorie</TableHead>
+                <TableHead className="hidden xl:table-cell">Eigentümer</TableHead>
                 <TableHead className="text-right">Monatl. Miete</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
@@ -218,6 +243,9 @@ export default function PropertiesList() {
                         <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${meta.color}`}>
                           {meta.icon}{meta.label}
                         </span>
+                      </TableCell>
+                      <TableCell className="hidden xl:table-cell text-sm text-muted-foreground">
+                        {ps.owner ?? "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="text-sm font-semibold tabular-nums">
@@ -320,6 +348,13 @@ export default function PropertiesList() {
                   <FormItem className="col-span-2">
                     <FormLabel>Kaufpreis (€)</FormLabel>
                     <FormControl><Input type="number" step="1000" placeholder="z.B. 850000" {...field} value={field.value ?? ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="owner" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Eigentümer (optional)</FormLabel>
+                    <FormControl><Input placeholder="z.B. Leinery Group GmbH" {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

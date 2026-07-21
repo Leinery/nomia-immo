@@ -54,8 +54,9 @@ router.get("/properties", async (_req, res): Promise<void> => {
   const result = properties.map((p) => {
     const propUnits = unitsByProperty.get(p.id) ?? [];
     const residential = propUnits.filter((u) => (u.unitType ?? "residential") === "residential").length;
-    const garage = propUnits.filter((u) => u.unitType === "garage").length;
-    const parking = propUnits.filter((u) => u.unitType === "parking").length;
+    const garage      = propUnits.filter((u) => u.unitType === "garage").length;
+    const parking     = propUnits.filter((u) => u.unitType === "parking").length;
+    const commercial  = propUnits.filter((u) => u.unitType === "commercial").length;
     const totalArea = propUnits.reduce((s, u) => s + (u.area ? parseFloat(u.area) : 0), 0);
     const monthlyRent = propUnits.reduce((s, u) => {
       const c = contractsByUnitId.get(u.id);
@@ -65,14 +66,20 @@ router.get("/properties", async (_req, res): Promise<void> => {
 
     return {
       ...serializeProperty(p),
-      totalUnits: residential, // backward compat: residential count
-      unitsByType: { residential, garage, parking },
+      totalUnits: residential,
+      unitsByType: { residential, garage, parking, commercial },
       totalArea: Math.round(totalArea * 10) / 10,
       monthlyRent: Math.round(monthlyRent * 100) / 100,
     };
   });
 
-  res.json(result);
+  // Owner filter
+  const ownerFilter = _req.query.owner as string | undefined;
+  const filtered = ownerFilter
+    ? result.filter((p) => (p.owner ?? "").toLowerCase() === ownerFilter.toLowerCase())
+    : result;
+
+  res.json(filtered);
 });
 
 // ─── POST /properties ─────────────────────────────────────────────────────────
