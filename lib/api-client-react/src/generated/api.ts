@@ -2673,6 +2673,124 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 export type GetIncomeByMonthQueryResult = NonNullable<Awaited<ReturnType<typeof getIncomeByMonth>>>
 export type GetIncomeByMonthQueryError = ErrorType<unknown>
 
+// ─── Loans (Kredite) ──────────────────────────────────────────────────────────
+
+export type LoanItem = {
+  id: number; propertyId: number | null; lenderName: string;
+  loanAmount: number; interestRate: number; repaymentRate: number;
+  startDate: string; fixedRateEndDate: string | null;
+  repaymentType: string; notes: string | null; createdAt: string;
+  // computed
+  monthlyPayment: number; currentBalance: number;
+  monthlyInterest: number; monthlyRepayment: number;
+  balanceAtFixedEnd: number | null;
+};
+
+export type LoanScheduleRow = {
+  year: number; month?: number;
+  openingBalance: number; interest: number; repayment: number;
+  annuitat: number; closingBalance: number; isFixedRateEnd?: boolean;
+};
+
+export type LoanScheduleResponse = { monthlyPayment: number; schedule: LoanScheduleRow[] };
+
+export type CreateLoanBody = {
+  propertyId?: number | null; lenderName: string;
+  loanAmount: number; interestRate: number; repaymentRate: number;
+  startDate: string; fixedRateEndDate?: string | null;
+  repaymentType?: string; notes?: string | null;
+};
+
+export type UpdateLoanBody = Partial<CreateLoanBody>;
+
+// List
+export const getListLoansQueryKey = () => ['/api/loans'] as const;
+export const listLoans = async (options?: RequestInit): Promise<LoanItem[]> =>
+  customFetch<LoanItem[]>('/api/loans', { ...options, method: 'GET' });
+export const getListLoansQueryOptions = <TData = Awaited<ReturnType<typeof listLoans>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof listLoans>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListLoansQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listLoans>>> = ({ signal }) => listLoans({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof listLoans>>, TError, TData> & { queryKey: QueryKey };
+};
+export function useListLoans<TData = Awaited<ReturnType<typeof listLoans>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof listLoans>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListLoansQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+// Get single
+export const getGetLoanQueryKey = (id: number) => [`/api/loans/${id}`] as const;
+export const getLoan = async (id: number, options?: RequestInit): Promise<LoanItem> =>
+  customFetch<LoanItem>(`/api/loans/${id}`, { ...options, method: 'GET' });
+export const getGetLoanQueryOptions = <TData = Awaited<ReturnType<typeof getLoan>>, TError = ErrorType<unknown>>(
+  id: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getLoan>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetLoanQueryKey(id);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoan>>> = ({ signal }) => getLoan(id, { signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getLoan>>, TError, TData> & { queryKey: QueryKey };
+};
+export function useGetLoan<TData = Awaited<ReturnType<typeof getLoan>>, TError = ErrorType<unknown>>(
+  id: number,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getLoan>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLoanQueryOptions(id, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+// Schedule
+export const getGetLoanScheduleQueryKey = (id: number, view: string) => [`/api/loans/${id}/schedule`, view] as const;
+export const getLoanSchedule = async (id: number, view: 'yearly' | 'monthly' = 'yearly', options?: RequestInit): Promise<LoanScheduleResponse> =>
+  customFetch<LoanScheduleResponse>(`/api/loans/${id}/schedule?view=${view}`, { ...options, method: 'GET' });
+export const getGetLoanScheduleQueryOptions = <TData = Awaited<ReturnType<typeof getLoanSchedule>>, TError = ErrorType<unknown>>(
+  id: number, view: 'yearly' | 'monthly' = 'yearly',
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getLoanSchedule>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetLoanScheduleQueryKey(id, view);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoanSchedule>>> = ({ signal }) => getLoanSchedule(id, view, { signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getLoanSchedule>>, TError, TData> & { queryKey: QueryKey };
+};
+export function useGetLoanSchedule<TData = Awaited<ReturnType<typeof getLoanSchedule>>, TError = ErrorType<unknown>>(
+  id: number, view: 'yearly' | 'monthly' = 'yearly',
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getLoanSchedule>>, TError, TData>; request?: SecondParameter<typeof customFetch> },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLoanScheduleQueryOptions(id, view, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+// Create
+export const createLoan = async (body: CreateLoanBody, options?: RequestInit): Promise<LoanItem> =>
+  customFetch<LoanItem>('/api/loans', { ...options, method: 'POST', headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) }, body: JSON.stringify(body) });
+export function useCreateLoan(options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof createLoan>>, ErrorType<unknown>, { body: CreateLoanBody }> }) {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLoan>>, { body: CreateLoanBody }> = (vars) => createLoan(vars.body);
+  return useMutation({ mutationFn, ...options?.mutation });
+}
+
+// Update
+export const updateLoan = async (id: number, body: UpdateLoanBody, options?: RequestInit): Promise<LoanItem> =>
+  customFetch<LoanItem>(`/api/loans/${id}`, { ...options, method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) }, body: JSON.stringify(body) });
+export function useUpdateLoan(options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateLoan>>, ErrorType<unknown>, { id: number; body: UpdateLoanBody }> }) {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLoan>>, { id: number; body: UpdateLoanBody }> = (vars) => updateLoan(vars.id, vars.body);
+  return useMutation({ mutationFn, ...options?.mutation });
+}
+
+// Delete
+export const deleteLoan = async (id: number, options?: RequestInit): Promise<void> =>
+  customFetch<void>(`/api/loans/${id}`, { ...options, method: 'DELETE' });
+export function useDeleteLoan(options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteLoan>>, ErrorType<unknown>, { id: number }> }) {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteLoan>>, { id: number }> = (vars) => deleteLoan(vars.id);
+  return useMutation({ mutationFn, ...options?.mutation });
+}
+
 // ─── Rent Debits (Sollstellungen) ─────────────────────────────────────────────
 
 export type RentDebitWithPayments = {

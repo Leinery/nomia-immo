@@ -20,6 +20,8 @@ import DocumentsList from "@/pages/documents/index";
 import UtilityCostsList from "@/pages/utility-costs/index";
 import UtilityStatementsList from "@/pages/utility-statements/index";
 import BankingPage from "@/pages/banking/index";
+import LoansList from "@/pages/loans/index";
+import LoanDetail from "@/pages/loans/detail";
 
 // ─── Clerk config ─────────────────────────────────────────────────────────────
 
@@ -158,6 +160,8 @@ function ProtectedRouter() {
             <Route path="/utility-statements" component={UtilityStatementsList} />
             <Route path="/documents" component={DocumentsList} />
             <Route path="/banking" component={BankingPage} />
+            <Route path="/loans/:id" component={LoanDetail} />
+            <Route path="/loans" component={LoansList} />
             <Route component={NotFound} />
           </Switch>
         </Shell>

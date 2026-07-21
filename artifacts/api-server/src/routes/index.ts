@@ -12,6 +12,7 @@ import bankingRouter from "./banking";
 import metersRouter from "./meters";
 import storageRouter from "./storage";
 import rentDebitsRouter from "./rent-debits";
+import loansRouter from "./loans";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(dashboardRouter);
 router.use(bankingRouter);
 router.use(metersRouter);
 router.use(rentDebitsRouter);
+router.use(loansRouter);
 
 export default router;
