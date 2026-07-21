@@ -168,9 +168,12 @@ export default function PropertyDetail() {
   // Aggregates from active contracts for Eckdaten
   const totalArea = useMemo(() =>
     (units ?? []).reduce((s, u) => s + ((u as any).area ?? 0), 0), [units]);
+  // €/m²: nur Wohn- und Gewerbefläche – Garage und Stellplatz bleiben außen vor
   const residentialArea = useMemo(() =>
-    (units ?? []).filter(u => (u as any).unitType === "residential" || !(u as any).unitType)
-      .reduce((s, u) => s + ((u as any).area ?? 0), 0), [units]);
+    (units ?? []).filter(u => {
+      const t = (u as any).unitType;
+      return t === "residential" || t === "commercial" || !t;
+    }).reduce((s, u) => s + ((u as any).area ?? 0), 0), [units]);
   const monthlyRent = useMemo(() =>
     (rentOverview ?? []).reduce((s, r) => s + r.currentMonth.soll, 0), [rentOverview]);
 
@@ -424,7 +427,7 @@ export default function PropertyDetail() {
                           ? `${(monthlyRent / residentialArea).toFixed(2)} €`
                           : "—"}
                       </p>
-                      <p className="text-xs text-muted-foreground">Ø €/m² (Wohnen)</p>
+                      <p className="text-xs text-muted-foreground">Ø €/m² (Wohn-/Gewerbe)</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
