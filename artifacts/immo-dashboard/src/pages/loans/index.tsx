@@ -257,7 +257,7 @@ export default function LoansList() {
 
       {/* Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Kredit bearbeiten" : "Neuer Kredit"}</DialogTitle>
             <DialogDescription>Tilgungsplan und Restschuld werden automatisch berechnet.</DialogDescription>
